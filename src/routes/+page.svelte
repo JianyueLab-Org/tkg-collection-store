@@ -1,5 +1,6 @@
 <script lang="ts">
   import Navbar from '$lib/Navbar.svelte';
+  import Footer from '$lib/Footer.svelte';
   import { onMount } from 'svelte';
 
   // ── Floating widget ────────────────────────────────────────────────────────
@@ -602,57 +603,7 @@
 </section>
 
 <!-- ===== FOOTER ===== -->
-<footer id="about" class="bg-slate-900 text-slate-400">
-  <div class="max-w-7xl mx-auto px-6 py-16">
-    <div class="grid md:grid-cols-2 lg:grid-cols-5 gap-12 mb-12">
-      <!-- Brand -->
-      <div class="lg:col-span-2 space-y-4">
-        <div class="flex items-center gap-2">
-          <span class="w-9 h-9 rounded-xl bg-gradient-to-br from-rose-500 to-purple-600 flex items-center justify-center">
-            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M21.75 9v.906a2.25 2.25 0 01-1.183 1.981l-6.478 3.488M2.25 9v.906a2.25 2.25 0 001.183 1.981l6.478 3.488m8.839 2.51l-4.66-2.51m0 0l-1.023-.55a2.25 2.25 0 00-2.134 0l-1.022.55m0 0l-4.661 2.51m16.5 1.615a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V8.844a2.25 2.25 0 011.183-1.98l7.5-4.04a2.25 2.25 0 012.134 0l7.5 4.04a2.25 2.25 0 011.183 1.98V19.5z"/>
-            </svg>
-          </span>
-          <span class="font-extrabold text-xl text-white"><span class="text-rose-400">TKG·</span><span class="text-purple-400">Collection Store</span></span>
-        </div>
-        <p class="text-sm leading-relaxed max-w-xs">
-          高木桑收藏品店 —— 专注于明信片、信件与邮票的收藏与代寄，让每一份珍藏都承载温度与故事。
-        </p>
-        <div class="flex gap-3">
-          {#each ['微博', '微信', '小红书', 'B站'] as platform}
-            <a href="#social" class="w-9 h-9 rounded-xl bg-slate-800 hover:bg-gradient-to-br hover:from-rose-500 hover:to-purple-600 flex items-center justify-center text-xs font-bold text-slate-400 hover:text-white transition-all duration-200">
-              {platform[0]}
-            </a>
-          {/each}
-        </div>
-      </div>
-      <!-- Links -->
-      {#each [
-        { title: '服务', links: ['明信片代寄', '邮票零售', '信件定制', '礼盒套装'] },
-        { title: '收藏', links: ['日本系列', '欧洲系列', '复古系列', '限量珍藏'] },
-        { title: '帮助', links: ['常见问题', '邮路追踪', '联系我们', '服务条款'] }
-      ] as col}
-        <div class="space-y-4">
-          <h4 class="font-bold text-white text-sm">{col.title}</h4>
-          <ul class="space-y-2">
-            {#each col.links as lnk}
-              <li><a href="#link" class="text-sm hover:text-rose-400 transition-colors">{lnk}</a></li>
-            {/each}
-          </ul>
-        </div>
-      {/each}
-    </div>
-    <div class="border-t border-slate-800 pt-8 flex flex-col items-center justify-between gap-4">
-      <p class="text-sm">© 2026 广州市白云区三元里高木桑收藏品店 保留所有权利。</p>
-      <p class="text-sm"><a href="https://beian.miit.gov.cn/#/Integrated/index">粤ICP备2026021900号 </a> <a href="#">粤xxxx 114514号</a></p>
-      <p class="text-sm">本店服务通过中国邮政实现，不提供实际寄送服务。</p>
-      <div class="flex items-center gap-2 text-xs">
-        <span class="w-2 h-2 rounded-full bg-red-400 animate-pulse"></span>
-        <span class="text-red-400">代寄服务测试中</span>
-      </div>
-    </div>
-  </div>
-</footer>
+<Footer />
 
 <!-- ===== FLOATING WIDGET ===== -->
 <div class="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
