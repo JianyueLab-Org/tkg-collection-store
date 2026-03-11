@@ -1,8 +1,27 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  // ── mode & flip animation ──────────────────────────────────────────────────
+  // mode: 'login' | 'register'
+  // flip phases:
+  //   'idle' → card at rotateY(0), showing current mode
+  //   'out'  → animating rotateY(0→90deg), card "folding away"
+  //   'in'   → animating rotateY(90→0deg), card "unfolding" with new content
+  import Footer from "$lib/Footer.svelte";
+  import Navbar from "$lib/Navbar.svelte";
 
-  // ── flip state ─────────────────────────────────────────────────────────────
-  let isRegister = false;   // false = login (front), true = register (back)
+  let mode: 'login' | 'register' = 'login';
+  let flipPhase: 'idle' | 'out' | 'in' = 'idle';
+
+  function switchMode() {
+    if (flipPhase !== 'idle') return;
+    flipPhase = 'out';
+    // After 'out' transition ends (280ms), swap content and start 'in'
+    setTimeout(() => {
+      mode = mode === 'login' ? 'register' : 'login';
+      flipPhase = 'in';
+      // After 'in' transition ends (280ms), return to idle
+      setTimeout(() => { flipPhase = 'idle'; }, 300);
+    }, 300);
+  }
 
   // ── login form ─────────────────────────────────────────────────────────────
   let loginEmail    = '';
@@ -13,47 +32,41 @@
   let showLoginPwd  = false;
 
   // ── register form ──────────────────────────────────────────────────────────
-  let regUsername   = '';
-  let regEmail      = '';
-  let regPassword   = '';
-  let regConfirm    = '';
-  let regNickname   = '';
-  let regLoading    = false;
-  let regError      = '';
-  let regSuccess    = '';
-  let showRegPwd    = false;
-  let showRegConf   = false;
-  let agreeTerms    = false;
+  let regUsername  = '';
+  let regEmail     = '';
+  let regPassword  = '';
+  let regConfirm   = '';
+  let regNickname  = '';
+  let regLoading   = false;
+  let regError     = '';
+  let regSuccess   = '';
+  let showRegPwd   = false;
+  let showRegConf  = false;
+  let agreeTerms   = false;
 
-  // ── paper-grain SVG filter id hack (SSR safe) ──────────────────────────────
-  let mounted = false;
-  onMount(() => { mounted = true; });
-
-  // ── helpers ────────────────────────────────────────────────────────────────
-  function validateEmail(e: string) {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
+  function validateEmail(v: string) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
   }
 
   // ── API: LOGIN ─────────────────────────────────────────────────────────────
   async function handleLogin(e: SubmitEvent) {
     e.preventDefault();
     loginError = ''; loginSuccess = '';
-    if (!validateEmail(loginEmail)) { loginError = '请输入有效的邮箱地址'; return; }
+    if (!validateEmail(loginEmail))  { loginError = '请输入有效的邮箱地址'; return; }
     if (loginPassword.length < 6)   { loginError = '密码至少 6 位'; return; }
     loginLoading = true;
     try {
-      // TODO: 替换为真实 API 端点
-      const res = await fetch('/api/auth/login', {
+      // ↓↓↓ TODO: 替换为真实后端端点
+      const res  = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: loginEmail, password: loginPassword })
+        body: JSON.stringify({ email: loginEmail, password: loginPassword }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message ?? '登录失败');
-      loginSuccess = '登录成功！正在跳转…';
-      // TODO: 保存 token / 跳转
-      // localStorage.setItem('token', data.token);
-      // goto('/');
+      loginSuccess = '登录成功！正在跳转 ✉️';
+      // TODO: localStorage.setItem('token', data.token);
+      // TODO: goto('/');
     } catch (err: any) {
       loginError = err.message ?? '网络错误，请稍后重试';
     } finally {
@@ -65,259 +78,217 @@
   async function handleRegister(e: SubmitEvent) {
     e.preventDefault();
     regError = ''; regSuccess = '';
-    if (!regUsername.trim())           { regError = '请填写用户名'; return; }
-    if (!validateEmail(regEmail))      { regError = '请输入有效的邮箱地址'; return; }
-    if (regPassword.length < 8)        { regError = '密码至少 8 位'; return; }
-    if (regPassword !== regConfirm)    { regError = '两次密码输入不一致'; return; }
-    if (!agreeTerms)                   { regError = '请阅读并同意服务条款'; return; }
+    if (!regUsername.trim())        { regError = '请填写用户名'; return; }
+    if (!validateEmail(regEmail))   { regError = '请输入有效的邮箱地址'; return; }
+    if (regPassword.length < 8)     { regError = '密码至少 8 位'; return; }
+    if (regPassword !== regConfirm) { regError = '两次密码不一致'; return; }
+    if (!agreeTerms)                { regError = '请阅读并同意服务条款'; return; }
     regLoading = true;
     try {
-      // TODO: 替换为真实 API 端点
-      const res = await fetch('/api/auth/register', {
+      // ↓↓↓ TODO: 替换为真实后端端点
+      const res  = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           username: regUsername,
           nickname: regNickname || regUsername,
           email: regEmail,
-          password: regPassword
-        })
+          password: regPassword,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message ?? '注册失败');
-      regSuccess = '注册成功！请前往登录 ✉️';
-      setTimeout(() => { isRegister = false; }, 1800);
+      regSuccess = '注册成功！即将跳转登录 🎉';
+      setTimeout(() => switchMode(), 1800);
     } catch (err: any) {
       regError = err.message ?? '网络错误，请稍后重试';
     } finally {
       regLoading = false;
     }
   }
+
+  // ── password strength ──────────────────────────────────────────────────────
+  $: pwdStrength = (() => {
+    if (!regPassword) return 0;
+    if (regPassword.length < 8) return 1;
+    if (regPassword.length < 12) return 2;
+    if (/[A-Z]/.test(regPassword) && /\d/.test(regPassword) && /[^A-Za-z0-9]/.test(regPassword)) return 4;
+    return 3;
+  })();
+
+  const strengthLabel = ['', '弱 — 太短了', '一般 — 建议更长', '良好 — 可以更强', '强 💪'];
+  const strengthColor = ['', 'text-red-400', 'text-amber-500', 'text-blue-500', 'text-green-500'];
+  const strengthBarColor = ['', 'bg-red-400', 'bg-amber-400', 'bg-blue-400', 'bg-green-400'];
 </script>
 
-<!-- ═══════════════════════════════════════════════════════════════════════════
-     PAGE SHELL
-═══════════════════════════════════════════════════════════════════════════ -->
-<div class="auth-bg min-h-screen flex flex-col items-center justify-center px-4 py-12 relative overflow-hidden">
+<!-- ═══════════════════════════════════════════════════ PAGE ═══════════════ -->
+<Navbar />
+<div class="auth-page">
 
-  <!-- ── ambient blobs ────────────────────────────────────────────────────── -->
-  <div class="absolute -top-40 -left-40 w-[480px] h-[480px] rounded-full
-    bg-gradient-to-br from-rose-200 to-pink-100 opacity-40 blur-3xl pointer-events-none"></div>
-  <div class="absolute -bottom-32 -right-32 w-[400px] h-[400px] rounded-full
-    bg-gradient-to-br from-purple-200 to-blue-100 opacity-40 blur-3xl pointer-events-none"></div>
-  <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] rounded-full
-    bg-gradient-to-r from-rose-100/30 via-purple-100/20 to-blue-100/30 blur-3xl pointer-events-none"></div>
+  <!-- ambient blobs -->
+  <div class="blob blob-rose"></div>
+  <div class="blob blob-purple"></div>
+  <div class="blob blob-blue"></div>
 
-  <!-- ── wireframe grid bg ─────────────────────────────────────────────────── -->
-  <svg class="absolute inset-0 w-full h-full opacity-[0.035] pointer-events-none" xmlns="http://www.w3.org/2000/svg">
+  <!-- wireframe grid -->
+  <svg class="wf-grid" xmlns="http://www.w3.org/2000/svg">
     <defs>
-      <pattern id="auth-grid" width="52" height="52" patternUnits="userSpaceOnUse">
-        <path d="M 52 0 L 0 0 0 52" fill="none" stroke="#7c3aed" stroke-width="1"/>
+      <pattern id="ag" width="52" height="52" patternUnits="userSpaceOnUse">
+        <path d="M52 0L0 0 0 52" fill="none" stroke="#7c3aed" stroke-width="1"/>
       </pattern>
     </defs>
-    <rect width="100%" height="100%" fill="url(#auth-grid)"/>
+    <rect width="100%" height="100%" fill="url(#ag)"/>
   </svg>
 
-  <!-- ── paper grain ───────────────────────────────────────────────────────── -->
-  <svg class="absolute inset-0 w-full h-full opacity-[0.022] mix-blend-multiply pointer-events-none" xmlns="http://www.w3.org/2000/svg">
-    <filter id="page-grain">
+  <!-- paper grain -->
+  <svg class="pg" xmlns="http://www.w3.org/2000/svg">
+    <filter id="pg-f">
       <feTurbulence type="fractalNoise" baseFrequency="0.72" numOctaves="4" stitchTiles="stitch"/>
       <feColorMatrix type="saturate" values="0"/>
     </filter>
-    <rect width="100%" height="100%" filter="url(#page-grain)" fill="#831843"/>
+    <rect width="100%" height="100%" filter="url(#pg-f)" fill="#831843"/>
   </svg>
 
-  <!-- ── logo + back link ──────────────────────────────────────────────────── -->
-  <a href="/" class="relative z-10 flex items-center gap-2 mb-10 group">
-    <span class="w-9 h-9 rounded-xl bg-gradient-to-br from-rose-500 to-purple-600
-      flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+  <!-- ── logo ─────────────────────────────────────────────────────────────── -->
+  <a href="/" class="logo-link">
+    <span class="logo-icon">
       <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round"
-          d="M21.75 9v.906a2.25 2.25 0 01-1.183 1.981l-6.478 3.488M2.25 9v.906a2.25 2.25 0 001.183 1.981l6.478 3.488
-             m8.839 2.51l-4.66-2.51m0 0l-1.023-.55a2.25 2.25 0 00-2.134 0l-1.022.55m0 0l-4.661 2.51
-             m16.5 1.615a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V8.844a2.25 2.25 0 011.183-1.98
-             l7.5-4.04a2.25 2.25 0 012.134 0l7.5 4.04a2.25 2.25 0 011.183 1.98V19.5z"/>
+          d="M21.75 9v.906a2.25 2.25 0 01-1.183 1.981l-6.478 3.488M2.25 9v.906a2.25 2.25
+             0 001.183 1.981l6.478 3.488m8.839 2.51l-4.66-2.51m0 0l-1.023-.55a2.25 2.25 0
+             00-2.134 0l-1.022.55m0 0l-4.661 2.51m16.5 1.615a2.25 2.25 0 01-2.25
+             2.25h-15a2.25 2.25 0 01-2.25-2.25V8.844a2.25 2.25 0 011.183-1.98l7.5-4.04a2.25
+             2.25 0 012.134 0l7.5 4.04a2.25 2.25 0 011.183 1.98V19.5z"/>
       </svg>
     </span>
-    <span class="font-extrabold text-2xl tracking-tight">
-      <span class="text-rose-500">TKG</span><span class="text-purple-700">Store</span>
-    </span>
+    <span class="logo-text"><span class="text-rose-500">TKG</span><span class="text-purple-700">Store</span></span>
   </a>
 
-  <!-- ─────────────────────────────────────────────────────────────────────────
-       POSTCARD 3-D FLIP CONTAINER
-  ───────────────────────────────────────────────────────────────────────────── -->
-  <div class="postcard-scene relative z-10" style="perspective: 1400px;">
+  <!-- ══════════════════════════════════════════════════════════════════════
+       POSTCARD CARD
+  ═══════════════════════════════════════════════════════════════════════ -->
+  <div class="card-scene">
 
-    <!-- overflowing stamp — top right, breaks grid -->
-    <div class="absolute -top-7 -right-5 z-20 rotate-12 pointer-events-none drop-shadow-xl">
-      <div class="stamp-widget w-14 h-[4.5rem] border-[2.5px] border-rose-400 rounded-sm
-        bg-gradient-to-b from-rose-50 to-pink-50 relative overflow-hidden
-        flex flex-col items-center justify-center gap-0.5">
-        <svg class="absolute inset-0 w-full h-full opacity-[0.07] mix-blend-multiply" xmlns="http://www.w3.org/2000/svg">
-          <filter id="s1-grain"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="3" stitchTiles="stitch"/>
+    <!-- overflow stamps / postmarks — always visible -->
+    <div class="ovr-stamp ovr-stamp-tr" aria-hidden="true">
+      <div class="stamp stamp-rose">
+        <svg class="abs-grain" xmlns="http://www.w3.org/2000/svg">
+          <filter id="st1g"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="3" stitchTiles="stitch"/>
           <feColorMatrix type="saturate" values="0"/></filter>
-          <rect width="100%" height="100%" filter="url(#s1-grain)" fill="#831843"/>
+          <rect width="100%" height="100%" filter="url(#st1g)" fill="#831843"/>
         </svg>
-        <div class="perf-top absolute top-0 left-0 right-0 flex justify-between px-0.5 -translate-y-1/2">
-          {#each [0,1,2,3,4,5] as _}
-            <div class="w-1.5 h-1.5 rounded-full bg-white border border-rose-300"></div>
-          {/each}
-        </div>
-        <div class="perf-bot absolute bottom-0 left-0 right-0 flex justify-between px-0.5 translate-y-1/2">
-          {#each [0,1,2,3,4,5] as _}
-            <div class="w-1.5 h-1.5 rounded-full bg-white border border-rose-300"></div>
-          {/each}
-        </div>
-        <span class="text-xl relative z-10">🌸</span>
-        <span class="text-[8px] font-mono font-bold text-rose-500 relative z-10">TKG</span>
-        <span class="text-[7px] text-rose-300 relative z-10">¥80</span>
+        {#each [0,1,2,3,4,5] as _}<div class="perf perf-t"></div>{/each}
+        {#each [0,1,2,3,4,5] as _}<div class="perf perf-b"></div>{/each}
+        <span class="stamp-emoji">🌸</span>
+        <span class="stamp-label">TKG</span>
+        <span class="stamp-price">¥80</span>
       </div>
     </div>
 
-    <!-- overflowing postmark — bottom left -->
-    <div class="absolute -bottom-6 -left-8 z-20 -rotate-6 pointer-events-none">
+    <div class="ovr-postmark ovr-pm-bl" aria-hidden="true">
       <svg width="64" height="64" viewBox="0 0 64 64" fill="none" class="opacity-50">
         <circle cx="32" cy="32" r="30" stroke="#7c3aed" stroke-width="1.5"/>
         <circle cx="32" cy="32" r="24" stroke="#7c3aed" stroke-width="0.8"/>
-        <line x1="6"  y1="32" x2="58" y2="32" stroke="#7c3aed" stroke-width="1.2"/>
+        <line x1="6" y1="32" x2="58" y2="32" stroke="#7c3aed" stroke-width="1.2"/>
         <text x="32" y="28" text-anchor="middle" font-size="6" fill="#7c3aed" font-family="monospace" font-weight="bold">TKG STORE</text>
         <text x="32" y="38" text-anchor="middle" font-size="5" fill="#7c3aed" font-family="monospace">2026</text>
       </svg>
     </div>
 
-    <!-- THE POSTCARD FLIP CARD -->
-    <div
-      class="postcard-card"
-      style="transform: rotateY({isRegister ? 180 : 0}deg);"
-    >
+    <!-- THE CARD -->
+    <div class="postcard" class:flip-out={flipPhase === 'out'} class:flip-in={flipPhase === 'in'}>
 
-      <!-- ════════════════════════════════════════════════════════════════════
-           FRONT — LOGIN
-      ═════════════════════════════════════════════════════════════════════ -->
-      <div class="postcard-face postcard-front">
+      <!-- paper grain on card -->
+      <svg class="abs-grain card-grain" xmlns="http://www.w3.org/2000/svg">
+        <filter id="cg">
+          <feTurbulence type="fractalNoise" baseFrequency="0.68" numOctaves="4" stitchTiles="stitch"/>
+          <feColorMatrix type="saturate" values="0"/>
+        </filter>
+        <rect width="100%" height="100%" filter="url(#cg)" fill="{mode === 'login' ? '#831843' : '#4c1d95'}"/>
+      </svg>
 
-        <!-- paper grain -->
-        <svg class="abs-grain opacity-[0.045] mix-blend-multiply" xmlns="http://www.w3.org/2000/svg">
-          <filter id="front-grain">
-            <feTurbulence type="fractalNoise" baseFrequency="0.68" numOctaves="4" stitchTiles="stitch"/>
-            <feColorMatrix type="saturate" values="0"/>
-          </filter>
-          <rect width="100%" height="100%" filter="url(#front-grain)" fill="#831843"/>
-        </svg>
+      <!-- colour top bar — reacts to mode -->
+      <div class="top-bar" class:top-bar-login={mode === 'login'} class:top-bar-reg={mode === 'register'}></div>
 
-        <!-- red-edge accent bar (top) -->
-        <div class="absolute top-0 left-0 right-0 h-1.5 rounded-t-2xl
-          bg-gradient-to-r from-rose-500 via-purple-500 to-blue-500"></div>
+      <!-- ── INNER LAYOUT: left form | dashed divider | right address col ── -->
+      <div class="card-inner">
 
-        <!-- card inner layout: left form | right address column -->
-        <div class="relative z-10 flex h-full pt-5">
+        <!-- ────────────────────────── LEFT: FORM ────────────────────────── -->
+        <div class="form-col">
 
-          <!-- LEFT — form area -->
-          <div class="flex-1 flex flex-col justify-between px-7 py-4 border-r border-dashed border-rose-200/70">
-
-            <!-- header -->
+          {#if mode === 'login'}
+          <!-- ════════════ LOGIN FORM ════════════ -->
+          <div class="form-header">
+            <span class="form-icon">✉️</span>
             <div>
-              <div class="flex items-center gap-2 mb-1">
-                <span class="text-xl">✉️</span>
-                <h2 class="text-xl font-black text-slate-800 tracking-tight">欢迎回来</h2>
-              </div>
-              <p class="text-xs text-slate-400 mb-5 font-mono tracking-wide">CORRESPONDENCE · LOGIN</p>
+              <h2 class="form-title">欢迎回来</h2>
+              <p class="form-sub">CORRESPONDENCE · LOGIN</p>
+            </div>
+          </div>
 
-              <form on:submit={handleLogin} class="space-y-4" novalidate>
-                <!-- email -->
-                <div class="field-wrap">
-                  <label class="field-label" for="l-email">📧 邮箱地址</label>
-                  <input
-                    id="l-email"
-                    type="email"
-                    bind:value={loginEmail}
-                    placeholder="your@email.com"
-                    autocomplete="email"
-                    class="field-input"
-                    required
-                  />
-                </div>
-
-                <!-- password -->
-                <div class="field-wrap">
-                  <label class="field-label" for="l-pwd">🔑 密码</label>
-                  <div class="relative">
-                    <input
-                      id="l-pwd"
-                      type={showLoginPwd ? 'text' : 'password'}
-                      bind:value={loginPassword}
-                      placeholder="••••••••"
-                      autocomplete="current-password"
-                      class="field-input pr-10"
-                      required
-                    />
-                    <button
-                      type="button"
-                      class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-rose-500 transition-colors"
-                      on:click={() => showLoginPwd = !showLoginPwd}
-                      aria-label="切换密码可见"
-                    >
-                      {#if showLoginPwd}
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88"/>
-                        </svg>
-                      {:else}
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                        </svg>
-                      {/if}
-                    </button>
-                  </div>
-                </div>
-
-                <!-- remember + forgot -->
-                <div class="flex items-center justify-between text-xs text-slate-500">
-                  <label class="flex items-center gap-1.5 cursor-pointer select-none">
-                    <input type="checkbox" class="rounded border-slate-300 text-rose-500 focus:ring-rose-400 w-3.5 h-3.5"/>
-                    记住我
-                  </label>
-                  <a href="/auth/forgot" class="text-rose-500 hover:text-rose-600 font-medium transition-colors">忘记密码？</a>
-                </div>
-
-                <!-- feedback -->
-                {#if loginError}
-                  <div class="feedback-error">{loginError}</div>
-                {/if}
-                {#if loginSuccess}
-                  <div class="feedback-success">{loginSuccess}</div>
-                {/if}
-
-                <!-- submit -->
-                <button
-                  type="submit"
-                  disabled={loginLoading}
-                  class="btn-primary w-full"
-                >
-                  {#if loginLoading}
-                    <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
-                    </svg>
-                    登录中…
-                  {:else}
-                    寄出登录信 ✉️
-                  {/if}
-                </button>
-              </form>
+          <form on:submit={handleLogin} class="form-body" novalidate>
+            <!-- email -->
+            <div class="field">
+              <label class="label" for="l-email">📧 邮箱地址</label>
+              <input id="l-email" type="email" bind:value={loginEmail}
+                placeholder="your@email.com" autocomplete="email"
+                class="input" required/>
             </div>
 
-            <!-- OAuth divider -->
-            <div class="mt-4">
-              <div class="flex items-center gap-3 mb-3">
-                <div class="flex-1 h-px bg-slate-200"></div>
-                <span class="text-[10px] text-slate-400 font-mono tracking-widest">OR</span>
-                <div class="flex-1 h-px bg-slate-200"></div>
+            <!-- password -->
+            <div class="field">
+              <label class="label" for="l-pwd">🔑 密码</label>
+              <div class="input-wrap">
+                <input id="l-pwd" type={showLoginPwd ? 'text' : 'password'}
+                  bind:value={loginPassword} placeholder="••••••••"
+                  autocomplete="current-password" class="input pr-9" required/>
+                <button type="button" class="eye-btn"
+                  on:click={() => showLoginPwd = !showLoginPwd} aria-label="切换可见">
+                  {#if showLoginPwd}
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88"/>
+                    </svg>
+                  {:else}
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                    </svg>
+                  {/if}
+                </button>
               </div>
-              <div class="grid grid-cols-2 gap-2">
-                <!-- TODO: wire up OAuth providers -->
-                <button class="oauth-btn" type="button">
-                  <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+            </div>
+
+            <!-- remember + forgot -->
+            <div class="row-between">
+              <label class="check-label">
+                <input type="checkbox" class="check-box"/> 记住我
+              </label>
+              <a href="/auth/forgot" class="link-rose text-xs">忘记密码？</a>
+            </div>
+
+            <!-- feedback -->
+            {#if loginError}<div class="fb-err">{loginError}</div>{/if}
+            {#if loginSuccess}<div class="fb-ok">{loginSuccess}</div>{/if}
+
+            <!-- submit -->
+            <button type="submit" disabled={loginLoading} class="btn btn-rose">
+              {#if loginLoading}
+                <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                </svg>
+                登录中…
+              {:else}
+                寄出登录信 ✉️
+              {/if}
+            </button>
+
+            <!-- OAuth -->
+            <div class="oauth-row">
+              <div class="divider"><div class="div-line"></div><span class="div-txt">OR</span><div class="div-line"></div></div>
+              <div class="oauth-btns">
+                <!-- TODO: wire OAuth -->
+                <button type="button" class="oauth-btn">
+                  <svg class="w-4 h-4" viewBox="0 0 24 24">
                     <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
                     <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
                     <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
@@ -325,519 +296,481 @@
                   </svg>
                   Google
                 </button>
-                <button class="oauth-btn" type="button">
-                  <svg class="w-4 h-4" viewBox="0 0 24 24" fill="#1DB954">
+                <button type="button" class="oauth-btn">
+                  <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M12 0C5.373 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.6.113.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/>
                   </svg>
                   GitHub
                 </button>
               </div>
             </div>
+          </form>
+
+          {:else}
+          <!-- ════════════ REGISTER FORM ════════════ -->
+          <div class="form-header">
+            <span class="form-icon">📮</span>
+            <div>
+              <h2 class="form-title">创建账户</h2>
+              <p class="form-sub">NEW CORRESPONDENT · REGISTER</p>
+            </div>
           </div>
 
-          <!-- RIGHT — address column (classic postcard right side) -->
-          <div class="w-36 flex flex-col justify-between px-4 py-4 flex-shrink-0">
-            <!-- top: stamp area -->
-            <div class="flex flex-col items-end gap-2">
-              <div class="w-14 h-16 border-2 border-dashed border-rose-300 rounded bg-rose-50/60
-                flex flex-col items-center justify-center gap-0.5 relative overflow-hidden">
-                <svg class="absolute inset-0 w-full h-full opacity-[0.06] mix-blend-multiply" xmlns="http://www.w3.org/2000/svg">
-                  <filter id="stamp-r-grain"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="3" stitchTiles="stitch"/>
-                  <feColorMatrix type="saturate" values="0"/></filter>
-                  <rect width="100%" height="100%" filter="url(#stamp-r-grain)" fill="#831843"/>
-                </svg>
-                <span class="text-2xl relative z-10">🌸</span>
-                <span class="text-[8px] text-rose-400 font-mono relative z-10">TKG</span>
+          <form on:submit={handleRegister} class="form-body" novalidate>
+            <!-- username + nickname -->
+            <div class="grid-2">
+              <div class="field">
+                <label class="label" for="r-user">👤 用户名 <span class="text-rose-400">*</span></label>
+                <input id="r-user" type="text" bind:value={regUsername}
+                  placeholder="tkg_user" autocomplete="username" class="input" required/>
               </div>
-              <!-- postmark circle -->
-              <svg width="44" height="44" viewBox="0 0 44 44" fill="none" class="opacity-30 -mt-1 -mr-1">
-                <circle cx="22" cy="22" r="20" stroke="#7c3aed" stroke-width="1.2"/>
-                <circle cx="22" cy="22" r="15" stroke="#7c3aed" stroke-width="0.7" fill="none"/>
-                <line x1="4" y1="22" x2="40" y2="22" stroke="#7c3aed" stroke-width="1"/>
-                <text x="22" y="19.5" text-anchor="middle" font-size="4.5" fill="#7c3aed" font-family="monospace">LOGIN</text>
-                <text x="22" y="26" text-anchor="middle" font-size="4" fill="#7c3aed" font-family="monospace">2026</text>
+              <div class="field">
+                <label class="label" for="r-nick">✨ 昵称</label>
+                <input id="r-nick" type="text" bind:value={regNickname}
+                  placeholder="高木桑" autocomplete="nickname" class="input"/>
+              </div>
+            </div>
+
+            <!-- email -->
+            <div class="field">
+              <label class="label" for="r-email">📧 邮箱地址 <span class="text-rose-400">*</span></label>
+              <input id="r-email" type="email" bind:value={regEmail}
+                placeholder="your@email.com" autocomplete="email" class="input" required/>
+            </div>
+
+            <!-- password + confirm -->
+            <div class="grid-2">
+              <div class="field">
+                <label class="label" for="r-pwd">🔑 密码 <span class="text-rose-400">*</span></label>
+                <div class="input-wrap">
+                  <input id="r-pwd" type={showRegPwd ? 'text' : 'password'}
+                    bind:value={regPassword} placeholder="至少8位"
+                    autocomplete="new-password" class="input pr-9" required/>
+                  <button type="button" class="eye-btn"
+                    on:click={() => showRegPwd = !showRegPwd} aria-label="切换">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                      {#if showRegPwd}
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88"/>
+                      {:else}
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                      {/if}
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              <div class="field">
+                <label class="label" for="r-conf">🔒 确认密码 <span class="text-rose-400">*</span></label>
+                <div class="input-wrap">
+                  <input id="r-conf" type={showRegConf ? 'text' : 'password'}
+                    bind:value={regConfirm} placeholder="再输一遍"
+                    autocomplete="new-password" class="input pr-9" required/>
+                  <button type="button" class="eye-btn"
+                    on:click={() => showRegConf = !showRegConf} aria-label="切换">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                      {#if showRegConf}
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88"/>
+                      {:else}
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                      {/if}
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- password strength -->
+            {#if regPassword}
+              <div class="pwd-strength">
+                <div class="pwd-bars">
+                  {#each [1,2,3,4] as lvl}
+                    <div class="pwd-bar {lvl <= pwdStrength ? strengthBarColor[pwdStrength] : 'bg-slate-200'}"></div>
+                  {/each}
+                </div>
+                <p class="text-[10px] {strengthColor[pwdStrength]}">{strengthLabel[pwdStrength]}</p>
+              </div>
+            {/if}
+
+            <!-- terms -->
+            <label class="terms-label">
+              <input type="checkbox" bind:checked={agreeTerms} class="check-box"/>
+              <span class="text-[11px] text-slate-500 leading-tight">
+                我已阅读并同意
+                <a href="/terms" class="link-purple">服务条款</a> 与
+                <a href="/privacy" class="link-purple">隐私政策</a>
+              </span>
+            </label>
+
+            <!-- feedback -->
+            {#if regError}<div class="fb-err">{regError}</div>{/if}
+            {#if regSuccess}<div class="fb-ok">{regSuccess}</div>{/if}
+
+            <!-- submit -->
+            <button type="submit" disabled={regLoading} class="btn btn-purple">
+              {#if regLoading}
+                <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                </svg>
+                注册中…
+              {:else}
+                投递注册信 📮
+              {/if}
+            </button>
+          </form>
+          {/if}
+
+        </div><!-- /form-col -->
+
+        <!-- ─────────────── RIGHT: ADDRESS COLUMN ─────────────────────── -->
+        <div class="addr-col">
+
+          <!-- stamp + postmark -->
+          <div class="addr-top">
+            <div class="addr-stamp" class:addr-stamp-reg={mode === 'register'}>
+              <svg class="abs-grain" xmlns="http://www.w3.org/2000/svg">
+                <filter id="as-g"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="3" stitchTiles="stitch"/>
+                <feColorMatrix type="saturate" values="0"/></filter>
+                <rect width="100%" height="100%" filter="url(#as-g)" fill="{mode === 'login' ? '#831843' : '#4c1d95'}"/>
               </svg>
+              <span class="text-xl relative z-10">{mode === 'login' ? '🌸' : '📮'}</span>
+              <span class="text-[8px] font-mono relative z-10" class:text-rose-400={mode==='login'} class:text-purple-400={mode==='register'}>TKG</span>
             </div>
+            <svg width="40" height="40" viewBox="0 0 40 40" fill="none" class="opacity-25 mt-1 self-end">
+              <circle cx="20" cy="20" r="18" stroke="#7c3aed" stroke-width="1.2"/>
+              <circle cx="20" cy="20" r="13" stroke="#7c3aed" stroke-width="0.7" fill="none"/>
+              <line x1="4" y1="20" x2="36" y2="20" stroke="#7c3aed" stroke-width="1"/>
+              <text x="20" y="18" text-anchor="middle" font-size="4.5" fill="#7c3aed" font-family="monospace">{mode === 'login' ? 'LOGIN' : 'REGIST'}</text>
+              <text x="20" y="24" text-anchor="middle" font-size="4" fill="#7c3aed" font-family="monospace">2026</text>
+            </svg>
+          </div>
 
-            <!-- middle: address lines -->
-            <div class="space-y-1.5 my-2">
-              <p class="text-[9px] text-slate-400 font-mono uppercase tracking-widest mb-1">收件人</p>
-              {#each [55,48,52,44] as w}
-                <div class="h-1 rounded-full bg-slate-200" style="width:{w}%"></div>
-              {/each}
-            </div>
+          <!-- address lines -->
+          <div class="addr-lines">
+            <p class="addr-title">收件人</p>
+            {#each [55,48,52,44,50] as w}
+              <div class="addr-line" style="width:{w}%"></div>
+            {/each}
+          </div>
 
-            <!-- bottom: flip to register -->
-            <button
-              type="button"
-              on:click={() => isRegister = true}
-              class="flip-hint-btn text-center"
-            >
-              <span class="text-[9px] font-mono text-purple-400 block leading-tight">还没有账户？</span>
-              <span class="text-[10px] font-bold text-purple-600 flex items-center justify-center gap-0.5 mt-0.5">
+          <!-- switch button -->
+          <button type="button" class="switch-btn" class:switch-btn-reg={mode === 'register'}
+            on:click={switchMode} disabled={flipPhase !== 'idle'}>
+            {#if mode === 'login'}
+              <span class="switch-hint">还没有账户？</span>
+              <span class="switch-action switch-action-purple">
                 翻转注册
                 <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"/>
                 </svg>
               </span>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- ════════════════════════════════════════════════════════════════════
-           BACK — REGISTER
-      ═════════════════════════════════════════════════════════════════════ -->
-      <div class="postcard-face postcard-back">
-
-        <!-- paper grain -->
-        <svg class="abs-grain opacity-[0.045] mix-blend-multiply" xmlns="http://www.w3.org/2000/svg">
-          <filter id="back-grain">
-            <feTurbulence type="fractalNoise" baseFrequency="0.71" numOctaves="4" stitchTiles="stitch"/>
-            <feColorMatrix type="saturate" values="0"/>
-          </filter>
-          <rect width="100%" height="100%" filter="url(#back-grain)" fill="#4c1d95"/>
-        </svg>
-
-        <!-- purple-edge accent bar (top) -->
-        <div class="absolute top-0 left-0 right-0 h-1.5 rounded-t-2xl
-          bg-gradient-to-r from-purple-500 via-blue-500 to-rose-500"></div>
-
-        <div class="relative z-10 flex h-full pt-5">
-
-          <!-- LEFT — form area -->
-          <div class="flex-1 flex flex-col px-7 py-4 border-r border-dashed border-purple-200/70">
-
-            <div class="flex items-center gap-2 mb-1">
-              <span class="text-xl">📮</span>
-              <h2 class="text-xl font-black text-slate-800 tracking-tight">创建账户</h2>
-            </div>
-            <p class="text-xs text-slate-400 mb-4 font-mono tracking-wide">NEW CORRESPONDENT · REGISTER</p>
-
-            <form on:submit={handleRegister} class="space-y-3 flex-1" novalidate>
-
-              <!-- row: username + nickname -->
-              <div class="grid grid-cols-2 gap-3">
-                <div class="field-wrap">
-                  <label class="field-label" for="r-username">👤 用户名 <span class="text-rose-400">*</span></label>
-                  <input
-                    id="r-username"
-                    type="text"
-                    bind:value={regUsername}
-                    placeholder="tkg_user"
-                    autocomplete="username"
-                    class="field-input"
-                    required
-                  />
-                </div>
-                <div class="field-wrap">
-                  <label class="field-label" for="r-nickname">✨ 昵称</label>
-                  <input
-                    id="r-nickname"
-                    type="text"
-                    bind:value={regNickname}
-                    placeholder="高木桑"
-                    autocomplete="nickname"
-                    class="field-input"
-                  />
-                </div>
-              </div>
-
-              <!-- email -->
-              <div class="field-wrap">
-                <label class="field-label" for="r-email">📧 邮箱地址 <span class="text-rose-400">*</span></label>
-                <input
-                  id="r-email"
-                  type="email"
-                  bind:value={regEmail}
-                  placeholder="your@email.com"
-                  autocomplete="email"
-                  class="field-input"
-                  required
-                />
-              </div>
-
-              <!-- row: password + confirm -->
-              <div class="grid grid-cols-2 gap-3">
-                <div class="field-wrap">
-                  <label class="field-label" for="r-pwd">🔑 密码 <span class="text-rose-400">*</span></label>
-                  <div class="relative">
-                    <input
-                      id="r-pwd"
-                      type={showRegPwd ? 'text' : 'password'}
-                      bind:value={regPassword}
-                      placeholder="至少8位"
-                      autocomplete="new-password"
-                      class="field-input pr-9"
-                      required
-                    />
-                    <button type="button" on:click={() => showRegPwd = !showRegPwd}
-                      class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-purple-500 transition-colors" aria-label="切换">
-                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        {#if showRegPwd}
-                          <path stroke-linecap="round" stroke-linejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88"/>
-                        {:else}
-                          <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                        {/if}
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-
-                <div class="field-wrap">
-                  <label class="field-label" for="r-conf">🔒 确认密码 <span class="text-rose-400">*</span></label>
-                  <div class="relative">
-                    <input
-                      id="r-conf"
-                      type={showRegConf ? 'text' : 'password'}
-                      bind:value={regConfirm}
-                      placeholder="再输一遍"
-                      autocomplete="new-password"
-                      class="field-input pr-9"
-                      required
-                    />
-                    <button type="button" on:click={() => showRegConf = !showRegConf}
-                      class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-purple-500 transition-colors" aria-label="切换">
-                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        {#if showRegConf}
-                          <path stroke-linecap="round" stroke-linejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88"/>
-                        {:else}
-                          <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                        {/if}
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <!-- password strength bar -->
-              {#if regPassword}
-                {@const strength = regPassword.length < 8 ? 1 : regPassword.length < 12 ? 2 : /[A-Z]/.test(regPassword) && /\d/.test(regPassword) ? 4 : 3}
-                <div class="space-y-1">
-                  <div class="flex gap-1">
-                    {#each [1,2,3,4] as lvl}
-                      <div class="flex-1 h-1 rounded-full transition-all duration-300
-                        {lvl <= strength
-                          ? strength === 1 ? 'bg-red-400'
-                          : strength === 2 ? 'bg-amber-400'
-                          : strength === 3 ? 'bg-blue-400'
-                          : 'bg-green-400'
-                          : 'bg-slate-200'}">
-                      </div>
-                    {/each}
-                  </div>
-                  <p class="text-[10px] {strength===1?'text-red-400':strength===2?'text-amber-500':strength===3?'text-blue-500':'text-green-500'}">
-                    {strength===1?'弱 — 太短了':strength===2?'一般 — 建议更长':strength===3?'良好 — 可以更强':'强 💪'}
-                  </p>
-                </div>
-              {/if}
-
-              <!-- terms -->
-              <label class="flex items-start gap-2 cursor-pointer select-none group">
-                <input
-                  type="checkbox"
-                  bind:checked={agreeTerms}
-                  class="mt-0.5 rounded border-slate-300 text-purple-500 focus:ring-purple-400 w-3.5 h-3.5 flex-shrink-0"
-                />
-                <span class="text-[11px] text-slate-500 leading-tight group-hover:text-slate-700 transition-colors">
-                  我已阅读并同意
-                  <a href="/terms" class="text-purple-500 hover:text-purple-600 underline underline-offset-2">服务条款</a>
-                  与
-                  <a href="/privacy" class="text-purple-500 hover:text-purple-600 underline underline-offset-2">隐私政策</a>
-                </span>
-              </label>
-
-              <!-- feedback -->
-              {#if regError}
-                <div class="feedback-error">{regError}</div>
-              {/if}
-              {#if regSuccess}
-                <div class="feedback-success">{regSuccess}</div>
-              {/if}
-
-              <!-- submit -->
-              <button
-                type="submit"
-                disabled={regLoading}
-                class="btn-primary-purple w-full"
-              >
-                {#if regLoading}
-                  <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
-                  </svg>
-                  注册中…
-                {:else}
-                  投递注册信 📮
-                {/if}
-              </button>
-            </form>
-          </div>
-
-          <!-- RIGHT — address column -->
-          <div class="w-36 flex flex-col justify-between px-4 py-4 flex-shrink-0">
-            <!-- stamp -->
-            <div class="flex flex-col items-end gap-2">
-              <div class="w-14 h-16 border-2 border-dashed border-purple-300 rounded bg-purple-50/60
-                flex flex-col items-center justify-center gap-0.5 relative overflow-hidden">
-                <svg class="absolute inset-0 w-full h-full opacity-[0.06] mix-blend-multiply" xmlns="http://www.w3.org/2000/svg">
-                  <filter id="stamp-back-grain"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="3" stitchTiles="stitch"/>
-                  <feColorMatrix type="saturate" values="0"/></filter>
-                  <rect width="100%" height="100%" filter="url(#stamp-back-grain)" fill="#4c1d95"/>
-                </svg>
-                <span class="text-2xl relative z-10">📮</span>
-                <span class="text-[8px] text-purple-400 font-mono relative z-10">TKG</span>
-              </div>
-              <svg width="44" height="44" viewBox="0 0 44 44" fill="none" class="opacity-30 -mt-1 -mr-1">
-                <circle cx="22" cy="22" r="20" stroke="#7c3aed" stroke-width="1.2"/>
-                <circle cx="22" cy="22" r="15" stroke="#7c3aed" stroke-width="0.7" fill="none"/>
-                <line x1="4" y1="22" x2="40" y2="22" stroke="#7c3aed" stroke-width="1"/>
-                <text x="22" y="19.5" text-anchor="middle" font-size="4" fill="#7c3aed" font-family="monospace">REGISTER</text>
-                <text x="22" y="26" text-anchor="middle" font-size="4" fill="#7c3aed" font-family="monospace">2026</text>
-              </svg>
-            </div>
-
-            <!-- address lines placeholder -->
-            <div class="space-y-1.5 my-2">
-              <p class="text-[9px] text-slate-400 font-mono uppercase tracking-widest mb-1">新账户</p>
-              {#each [55,48,52,44,50] as w}
-                <div class="h-1 rounded-full bg-slate-200" style="width:{w}%"></div>
-              {/each}
-            </div>
-
-            <!-- flip back to login -->
-            <button
-              type="button"
-              on:click={() => isRegister = false}
-              class="flip-hint-btn text-center"
-            >
-              <span class="text-[9px] font-mono text-rose-400 block leading-tight">已有账户？</span>
-              <span class="text-[10px] font-bold text-rose-600 flex items-center justify-center gap-0.5 mt-0.5">
+            {:else}
+              <span class="switch-hint" style="color:#f87171;">已有账户？</span>
+              <span class="switch-action switch-action-rose">
                 翻回登录
                 <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"/>
                 </svg>
               </span>
-            </button>
-          </div>
-        </div>
-      </div>
+            {/if}
+          </button>
 
-    </div><!-- end .postcard-card -->
-  </div><!-- end .postcard-scene -->
-
-  <!-- bottom tagline -->
-  <p class="relative z-10 mt-10 text-xs text-slate-400 font-mono tracking-widest text-center">
-    TKG STORE · SINCE 2018 · 每张明信片都是一段旅程
-  </p>
-
+        </div><!-- /addr-col -->
+      </div><!-- /card-inner -->
+    </div><!-- /postcard -->
+  </div><!-- /card-scene -->
 </div>
+<Footer />
 
-<!-- ══════════════════════════════════════════════════════════════════════════
-     STYLES
-══════════════════════════════════════════════════════════════════════════ -->
+<!-- ═════════════════════════════════════════════════════════ STYLES ════════ -->
 <style>
-  /* ── page background ──────────────────────────────────────────────────── */
-  .auth-bg {
-    background: linear-gradient(145deg, #fdf2f8 0%, #faf5ff 40%, #eff6ff 100%);
+  /* ── page ──────────────────────────────────────────────── */
+  .auth-page {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem 1rem;
+    background: linear-gradient(145deg, #fdf2f8 0%, #faf5ff 45%, #eff6ff 100%);
+    position: relative;
+    overflow: hidden;
   }
 
-  /* ── postcard scene ───────────────────────────────────────────────────── */
-  .postcard-scene {
+  /* blobs */
+  .blob {
+    position: absolute;
+    border-radius: 9999px;
+    pointer-events: none;
+    filter: blur(80px);
+    opacity: 0.38;
+  }
+  .blob-rose   { top:-10rem;  left:-10rem;  width:28rem; height:28rem; background:radial-gradient(circle,#fda4af,#fce7f3); }
+  .blob-purple { bottom:-8rem;right:-8rem;  width:24rem; height:24rem; background:radial-gradient(circle,#c4b5fd,#ede9fe); }
+  .blob-blue   { top:50%;left:50%; transform:translate(-50%,-50%); width:38rem; height:18rem; background:radial-gradient(ellipse,#bfdbfe,transparent); opacity:0.22; }
+
+  /* wireframe grid */
+  .wf-grid {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    opacity: 0.035; pointer-events: none;
+  }
+
+  /* paper grain overlay */
+  .pg {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    opacity: 0.022; mix-blend-mode: multiply; pointer-events: none;
+  }
+
+  /* ── logo ───────────────────────────────────────────────── */
+  .logo-link {
+    position: relative; z-index: 10;
+    display: flex; align-items: center; gap: 0.5rem;
+    margin-bottom: 2.5rem; text-decoration: none;
+  }
+  .logo-icon {
+    width: 2.25rem; height: 2.25rem; border-radius: 0.625rem;
+    background: linear-gradient(135deg, #f43f5e, #a855f7);
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 14px rgba(244,63,94,0.3);
+    transition: transform 0.2s;
+  }
+  .logo-link:hover .logo-icon { transform: scale(1.1); }
+  .logo-text { font-size: 1.5rem; font-weight: 900; letter-spacing: -0.03em; }
+
+  /* ── card scene ─────────────────────────────────────────── */
+  .card-scene {
+    position: relative; z-index: 10;
     width: min(720px, 96vw);
   }
 
-  .postcard-card {
-    position: relative;
-    width: 100%;
-    height: 400px;
-    transform-style: preserve-3d;
-    transition: transform 0.8s cubic-bezier(0.23, 1, 0.32, 1);
-    filter:
-      drop-shadow(0 24px 40px rgba(244,63,94,0.13))
-      drop-shadow(0 8px 16px rgba(124,58,237,0.10))
-      drop-shadow(0 2px 4px rgba(0,0,0,0.06));
-  }
+  /* ── overflow decorations ───────────────────────────────── */
+  .ovr-stamp { position: absolute; z-index: 20; pointer-events: none; }
+  .ovr-stamp-tr { top: -1.75rem; right: -1.25rem; transform: rotate(12deg); }
 
-  /* ── faces ────────────────────────────────────────────────────────────── */
-  .postcard-face {
-    position: absolute;
-    inset: 0;
+  .stamp {
+    width: 3.5rem; height: 4.5rem;
+    border: 2.5px solid;
+    border-radius: 2px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+    position: relative; overflow: hidden;
+    filter: drop-shadow(0 4px 8px rgba(0,0,0,0.15));
+  }
+  .stamp-rose { border-color: #f43f5e; background: linear-gradient(to bottom,#fff1f2,#fce7f3); }
+
+  .perf { position: absolute; width: 6px; height: 6px; border-radius: 9999px; background: white; border: 1px solid; }
+  .perf-t { top: -3px; border-color: #fda4af; }
+  .perf-b { bottom: -3px; border-color: #fda4af; }
+  /* distribute perfs evenly via nth-child */
+  .perf:nth-child(1)  { left: 2px; }
+  .perf:nth-child(2)  { left: 20%; }
+  .perf:nth-child(3)  { left: 40%; }
+  .perf:nth-child(4)  { left: 60%; }
+  .perf:nth-child(5)  { left: 80%; }
+  .perf:nth-child(6)  { right: 2px; }
+  .perf:nth-child(7)  { left: 2px; }
+  .perf:nth-child(8)  { left: 20%; }
+  .perf:nth-child(9)  { left: 40%; }
+  .perf:nth-child(10) { left: 60%; }
+  .perf:nth-child(11) { left: 80%; }
+  .perf:nth-child(12) { right: 2px; }
+
+  .stamp-emoji { font-size: 1.35rem; position: relative; z-index: 10; }
+  .stamp-label { font-size: 0.5rem; font-family: monospace; font-weight: 700; color: #f43f5e; position: relative; z-index: 10; }
+  .stamp-price { font-size: 0.44rem; color: #fda4af; position: relative; z-index: 10; }
+
+  .ovr-postmark { position: absolute; z-index: 20; pointer-events: none; }
+  .ovr-pm-bl { bottom: -1.5rem; left: -2rem; transform: rotate(-6deg); }
+
+  /* ── THE POSTCARD ───────────────────────────────────────── */
+  .postcard {
+    position: relative;
     border-radius: 1.25rem;
     background: #fffdf9;
     border: 1.5px solid #fce7f3;
-    backface-visibility: hidden;
     overflow: hidden;
-    /* subtle inner shadow for depth */
+    /* neumorphic lift */
     box-shadow:
-      inset 0 1px 0 rgba(255,255,255,0.9),
-      inset 0 -1px 0 rgba(0,0,0,0.03);
+      0 24px 48px rgba(244,63,94,0.12),
+      0 8px 20px rgba(124,58,237,0.09),
+      0 2px 6px rgba(0,0,0,0.06),
+      inset 0 1px 0 rgba(255,255,255,0.9);
+    /* flip animation target */
+    transform-origin: center center;
+    transition: transform 0.28s cubic-bezier(0.4, 0, 0.6, 1);
   }
 
-  .postcard-back {
-    transform: rotateY(180deg);
-    border-color: #ede9fe;
+  /* flip-out: fold card away (0 → 90deg, squash width) */
+  .postcard.flip-out {
+    transform: rotateY(90deg) scaleX(0.6);
+    opacity: 0.7;
+  }
+  /* flip-in: unfold from 90 → 0 */
+  .postcard.flip-in {
+    transform: rotateY(0deg) scaleX(1);
+    opacity: 1;
+    transition: transform 0.28s cubic-bezier(0.2, 0.8, 0.4, 1);
   }
 
-  /* ── grain overlay helper ─────────────────────────────────────────────── */
+  /* abs grain helper */
   .abs-grain {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
+    position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none;
+  }
+  .card-grain { opacity: 0.045; mix-blend-mode: multiply; }
+
+  /* top colour bar */
+  .top-bar {
+    position: absolute; top: 0; left: 0; right: 0;
+    height: 5px; border-radius: 1.25rem 1.25rem 0 0;
+    transition: background 0.4s ease;
+  }
+  .top-bar-login  { background: linear-gradient(90deg,#f43f5e,#a855f7,#3b82f6); }
+  .top-bar-reg    { background: linear-gradient(90deg,#a855f7,#3b82f6,#f43f5e); }
+
+  /* ── card inner layout ──────────────────────────────────── */
+  .card-inner {
+    display: flex; height: 100%; padding-top: 1.25rem;
   }
 
-  /* ── fields ───────────────────────────────────────────────────────────── */
-  .field-wrap { display: flex; flex-direction: column; gap: 0.25rem; }
-
-  .field-label {
-    font-size: 0.625rem;
-    font-weight: 600;
-    color: #64748b;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
+  /* form column */
+  .form-col {
+    flex: 1; display: flex; flex-direction: column;
+    padding: 0.75rem 1.5rem 1rem;
+    border-right: 1.5px dashed rgba(244,63,94,0.25);
+    min-height: 440px;
+    overflow: hidden;
   }
 
-  .field-input {
-    width: 100%;
-    padding: 0.45rem 0.65rem;
-    border-radius: 0.625rem;
-    border: 1.5px solid #e2e8f0;
-    background: rgba(255,255,255,0.7);
-    font-size: 0.8125rem;
-    color: #1e293b;
-    outline: none;
-    transition: border-color 0.18s, box-shadow 0.18s;
-    /* neumorphism inset */
+  /* form header */
+  .form-header {
+    display: flex; align-items: center; gap: 0.5rem;
+    margin-bottom: 1rem;
+  }
+  .form-icon { font-size: 1.25rem; line-height: 1; }
+  .form-title { font-size: 1.2rem; font-weight: 900; color: #1e293b; letter-spacing: -0.02em; }
+  .form-sub   { font-size: 0.6rem; color: #94a3b8; font-family: monospace; letter-spacing: 0.1em; margin-top: 1px; }
+
+  /* form body */
+  .form-body { display: flex; flex-direction: column; gap: 0.7rem; flex: 1; }
+
+  /* fields */
+  .field  { display: flex; flex-direction: column; gap: 0.2rem; }
+  .label  { font-size: 0.6rem; font-weight: 700; color: #64748b; letter-spacing: 0.08em; text-transform: uppercase; }
+  .input-wrap { position: relative; }
+  .input {
+    width: 100%; padding: 0.42rem 0.7rem;
+    border-radius: 0.625rem; border: 1.5px solid #e2e8f0;
+    background: rgba(255,255,255,0.75); font-size: 0.8125rem; color: #1e293b;
+    outline: none; transition: border-color 0.18s, box-shadow 0.18s;
     box-shadow: inset 2px 2px 4px rgba(0,0,0,0.04), inset -1px -1px 3px rgba(255,255,255,0.9);
+    box-sizing: border-box;
   }
-  .field-input:focus {
+  .input:focus {
     border-color: #f43f5e;
-    box-shadow: 0 0 0 3px rgba(244,63,94,0.12), inset 2px 2px 4px rgba(0,0,0,0.04);
+    box-shadow: 0 0 0 3px rgba(244,63,94,0.11), inset 2px 2px 4px rgba(0,0,0,0.04);
   }
-  .field-input::placeholder { color: #cbd5e1; }
+  .input::placeholder { color: #cbd5e1; }
+  .pr-9 { padding-right: 2.25rem; }
 
-  /* ── buttons ──────────────────────────────────────────────────────────── */
-  .btn-primary {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.375rem;
-    padding: 0.6rem 1rem;
-    border-radius: 0.75rem;
-    font-size: 0.8125rem;
-    font-weight: 700;
-    color: white;
-    background: linear-gradient(135deg, #f43f5e, #a855f7);
-    box-shadow: 0 4px 14px rgba(244,63,94,0.28), 0 2px 6px rgba(168,85,247,0.18);
-    transition: all 0.2s;
-    cursor: pointer;
-    border: none;
+  .eye-btn {
+    position: absolute; right: 0.6rem; top: 50%; transform: translateY(-50%);
+    color: #94a3b8; background: none; border: none; cursor: pointer; padding: 0; display: flex;
+    transition: color 0.15s;
   }
-  .btn-primary:hover:not(:disabled) {
-    background: linear-gradient(135deg, #e11d48, #9333ea);
-    transform: translateY(-1px);
-    box-shadow: 0 6px 20px rgba(244,63,94,0.32);
-  }
-  .btn-primary:disabled { opacity: 0.65; cursor: not-allowed; }
+  .eye-btn:hover { color: #f43f5e; }
 
-  .btn-primary-purple {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.375rem;
-    padding: 0.6rem 1rem;
-    border-radius: 0.75rem;
-    font-size: 0.8125rem;
-    font-weight: 700;
-    color: white;
-    background: linear-gradient(135deg, #a855f7, #3b82f6);
-    box-shadow: 0 4px 14px rgba(168,85,247,0.28), 0 2px 6px rgba(59,130,246,0.18);
-    transition: all 0.2s;
-    cursor: pointer;
-    border: none;
-  }
-  .btn-primary-purple:hover:not(:disabled) {
-    background: linear-gradient(135deg, #9333ea, #2563eb);
-    transform: translateY(-1px);
-  }
-  .btn-primary-purple:disabled { opacity: 0.65; cursor: not-allowed; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
 
-  .oauth-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.375rem;
-    padding: 0.45rem 0.5rem;
-    border-radius: 0.625rem;
-    border: 1.5px solid #e2e8f0;
-    background: rgba(255,255,255,0.8);
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: #475569;
-    cursor: pointer;
-    transition: all 0.18s;
+  /* row helpers */
+  .row-between { display: flex; align-items: center; justify-content: space-between; }
+  .check-label { display: flex; align-items: center; gap: 0.35rem; font-size: 0.72rem; color: #64748b; cursor: pointer; user-select: none; }
+  .check-box   { width: 0.8rem; height: 0.8rem; border-radius: 3px; border: 1.5px solid #cbd5e1; accent-color: #f43f5e; }
+  .link-rose   { color: #f43f5e; font-weight: 600; text-decoration: none; transition: color 0.15s; }
+  .link-rose:hover { color: #e11d48; }
+  .link-purple { color: #a855f7; text-decoration: underline; text-underline-offset: 2px; }
+
+  /* feedback */
+  .fb-err { padding: 0.35rem 0.6rem; border-radius: 0.5rem; background: #fff1f2; border: 1px solid #fecdd3; color: #e11d48; font-size: 0.7rem; font-weight: 500; }
+  .fb-ok  { padding: 0.35rem 0.6rem; border-radius: 0.5rem; background: #f0fdf4; border: 1px solid #bbf7d0; color: #16a34a; font-size: 0.7rem; font-weight: 500; }
+
+  /* buttons */
+  .btn {
+    display: flex; align-items: center; justify-content: center; gap: 0.375rem;
+    padding: 0.58rem 1rem; border-radius: 0.75rem;
+    font-size: 0.8125rem; font-weight: 700; color: white;
+    border: none; cursor: pointer; transition: all 0.2s;
+  }
+  .btn:disabled { opacity: 0.65; cursor: not-allowed; }
+  .btn-rose   { background: linear-gradient(135deg,#f43f5e,#a855f7); box-shadow: 0 4px 14px rgba(244,63,94,0.28); }
+  .btn-rose:hover:not(:disabled)   { background: linear-gradient(135deg,#e11d48,#9333ea); transform: translateY(-1px); }
+  .btn-purple { background: linear-gradient(135deg,#a855f7,#3b82f6); box-shadow: 0 4px 14px rgba(168,85,247,0.28); }
+  .btn-purple:hover:not(:disabled) { background: linear-gradient(135deg,#9333ea,#2563eb); transform: translateY(-1px); }
+
+  /* OAuth */
+  .oauth-row  { margin-top: auto; }
+  .divider    { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; }
+  .div-line   { flex: 1; height: 1px; background: #e2e8f0; }
+  .div-txt    { font-size: 0.6rem; color: #94a3b8; font-family: monospace; letter-spacing: 0.12em; }
+  .oauth-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; }
+  .oauth-btn  {
+    display: flex; align-items: center; justify-content: center; gap: 0.35rem;
+    padding: 0.42rem 0.5rem; border-radius: 0.6rem;
+    border: 1.5px solid #e2e8f0; background: rgba(255,255,255,0.8);
+    font-size: 0.73rem; font-weight: 600; color: #475569;
+    cursor: pointer; transition: all 0.18s;
     box-shadow: 2px 2px 6px rgba(0,0,0,0.04), -1px -1px 4px rgba(255,255,255,0.9);
   }
-  .oauth-btn:hover {
-    border-color: #f43f5e;
-    color: #e11d48;
-    transform: translateY(-1px);
-  }
+  .oauth-btn:hover { border-color: #f43f5e; color: #e11d48; transform: translateY(-1px); }
 
-  .flip-hint-btn {
-    padding: 0.5rem 0.375rem;
-    border-radius: 0.625rem;
-    border: 1px dashed #c4b5fd;
+  /* password strength */
+  .pwd-strength { display: flex; flex-direction: column; gap: 0.2rem; }
+  .pwd-bars { display: flex; gap: 0.2rem; }
+  .pwd-bar  { flex: 1; height: 3px; border-radius: 9999px; transition: background 0.3s; }
+
+  /* terms */
+  .terms-label { display: flex; align-items: flex-start; gap: 0.4rem; cursor: pointer; user-select: none; }
+
+  /* ── address column ─────────────────────────────────────── */
+  .addr-col {
+    width: 8.5rem; flex-shrink: 0;
+    display: flex; flex-direction: column; justify-content: space-between;
+    padding: 0.75rem 0.9rem 1rem;
+  }
+  .addr-top { display: flex; flex-direction: column; align-items: flex-end; gap: 0.35rem; }
+
+  .addr-stamp {
+    width: 3.25rem; height: 4rem;
+    border: 2px dashed #fda4af; border-radius: 3px;
+    background: rgba(255,241,242,0.7);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+    position: relative; overflow: hidden; transition: border-color 0.3s, background 0.3s;
+  }
+  .addr-stamp-reg { border-color: #c4b5fd; background: rgba(245,243,255,0.7); }
+
+  .addr-lines { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 0.35rem; margin: 0.5rem 0; }
+  .addr-title { font-size: 0.55rem; color: #94a3b8; font-family: monospace; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 0.15rem; }
+  .addr-line  { height: 3px; border-radius: 9999px; background: #e2e8f0; }
+
+  /* switch button */
+  .switch-btn {
+    width: 100%; padding: 0.5rem 0.4rem;
+    border-radius: 0.625rem; border: 1px dashed #c4b5fd;
     background: rgba(245,243,255,0.6);
-    cursor: pointer;
-    transition: all 0.18s;
-    width: 100%;
+    cursor: pointer; transition: all 0.18s; text-align: center;
   }
-  .flip-hint-btn:hover {
-    background: rgba(237,233,254,0.9);
-    border-color: #a78bfa;
-    transform: scale(1.02);
-  }
+  .switch-btn:hover:not(:disabled) { background: rgba(237,233,254,0.9); border-color: #a78bfa; transform: scale(1.02); }
+  .switch-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .switch-btn-reg { border-color: #fda4af; background: rgba(255,241,242,0.6); }
+  .switch-btn-reg:hover:not(:disabled) { background: rgba(255,228,230,0.9); border-color: #f43f5e; }
 
-  /* ── feedback ─────────────────────────────────────────────────────────── */
-  .feedback-error {
-    padding: 0.4rem 0.65rem;
-    border-radius: 0.5rem;
-    background: #fff1f2;
-    border: 1px solid #fecdd3;
-    color: #e11d48;
-    font-size: 0.7rem;
-    font-weight: 500;
-  }
-  .feedback-success {
-    padding: 0.4rem 0.65rem;
-    border-radius: 0.5rem;
-    background: #f0fdf4;
-    border: 1px solid #bbf7d0;
-    color: #16a34a;
-    font-size: 0.7rem;
-    font-weight: 500;
-  }
+  .switch-hint   { font-size: 0.56rem; font-family: monospace; color: #a78bfa; display: block; line-height: 1.3; }
+  .switch-action { font-size: 0.65rem; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 2px; margin-top: 2px; }
+  .switch-action-purple { color: #7c3aed; }
+  .switch-action-rose   { color: #e11d48; }
 
-  /* ── stamp widget ─────────────────────────────────────────────────────── */
-  .stamp-widget {
-    /* left/right perf shadow */
-    box-shadow: -2px 0 0 0 rgba(244,63,94,0.15), 2px 0 0 0 rgba(244,63,94,0.15);
-  }
-
-  /* ── mobile responsive ────────────────────────────────────────────────── */
-  @media (max-width: 520px) {
-    .postcard-card { height: 520px; }
-    .postcard-face .flex { flex-direction: column; }
-    .postcard-face .w-36 {
-      width: 100%;
-      flex-direction: row;
-      border-right: none;
-      border-top: 1px dashed #e2e8f0;
-      padding: 0.75rem 1.25rem;
-    }
+  /* ── tagline ─────────────────────────────────────────────── */
+  .tagline {
+    position: relative; z-index: 10;
+    margin-top: 2.5rem; font-size: 0.65rem; color: #94a3b8;
+    font-family: monospace; letter-spacing: 0.18em; text-align: center;
   }
 </style>
 
