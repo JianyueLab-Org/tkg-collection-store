@@ -3,6 +3,9 @@
   import Footer from '$lib/Footer.svelte';
   import { onMount } from 'svelte';
 
+  // ── Construction Modal ─────────────────────────────────────────────────────
+  let showConstructionModal = false;
+
   // ── Floating widget ────────────────────────────────────────────────────────
   let widgetOpen = false;
   let widgetMessage = '';
@@ -121,6 +124,9 @@
   let statsRef: HTMLElement;
 
   onMount(() => {
+    // Show construction modal on page load
+    showConstructionModal = true;
+
     startAutoRotate();
     const obs = new IntersectionObserver(([e]) => {
       if (e.isIntersecting) statsVisible = true;
@@ -170,6 +176,29 @@
 </script>
 
 <Navbar />
+
+<!-- ===== CONSTRUCTION MODAL ===== -->
+<!--TODO 设计完毕要更改showConstructionModal取消展示-->
+{#if showConstructionModal}
+  <div class="modal-backdrop" on:click={() => showConstructionModal = false}>
+    <div class="modal-content" on:click|stopPropagation>
+      <button class="modal-close-btn" on:click={() => showConstructionModal = false}>&times;</button>
+      <h2 class="modal-title">🚧 施工中：高木桑的小店正在努力装修...</h2>
+      <div class="modal-body">
+        <p>你好！欢迎来到我的收藏站。本网站目前正处于 <strong>技术预览/测试阶段</strong>。</p>
+        <ul class="list-disc list-inside space-y-2 my-4">
+          <li><strong>功能状态：</strong>前端 UI正在逐步设计，后端逻辑正在筹备开发中。</li>
+          <li><strong>关于数据：</strong>页面上的“5万+”等数据仅为 UI 演示占位，非真实统计。</li>
+          <li><strong>真实业务：</strong>代寄服务暂未开启，目前仅供技术交流与收藏展示。</li>
+        </ul>
+        <p class="text-right mt-4">感谢你的关注，我会尽快完成它的！<br/>—— Jack</p>
+      </div>
+      <button class="modal-confirm-btn" on:click={() => showConstructionModal = false}>
+        我明白了
+      </button>
+    </div>
+  </div>
+{/if}
 
 <!-- ===== HERO ===== -->
 <section class="relative min-h-screen flex items-center overflow-hidden bg-white pt-20">
@@ -677,5 +706,94 @@
   .scanline {
     animation: scanline 5s linear infinite;
   }
-</style>
 
+  /* ===== Construction Modal Styles ===== */
+  .modal-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(11, 24, 41, 0.6);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    padding: 1rem;
+  }
+
+  .modal-content {
+    background: white;
+    padding: 2rem;
+    border-radius: 1.5rem;
+    max-width: 500px;
+    width: 100%;
+    box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+    border: 1px solid #e5e7eb;
+    position: relative;
+    animation: modal-fade-in 0.3s ease-out;
+  }
+
+  @keyframes modal-fade-in {
+    from { opacity: 0; transform: translateY(-20px) scale(0.95); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  .modal-title {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: #1f2937;
+    margin-bottom: 1rem;
+  }
+
+  .modal-body {
+    font-size: 0.95rem;
+    color: #4b5563;
+    line-height: 1.6;
+  }
+
+  .modal-body strong {
+    color: #be185d;
+  }
+
+  .modal-close-btn {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 9999px;
+    background-color: #f3f4f6;
+    color: #6b7280;
+    font-size: 1.5rem;
+    line-height: 1;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s, color 0.2s;
+  }
+  .modal-close-btn:hover {
+    background-color: #e5e7eb;
+    color: #1f2937;
+  }
+
+  .modal-confirm-btn {
+    margin-top: 1.5rem;
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border-radius: 0.75rem;
+    background: linear-gradient(to right, #ec4899, #8b5cf6);
+    color: white;
+    font-weight: 700;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .modal-confirm-btn:hover {
+    opacity: 0.9;
+    box-shadow: 0 4px 15px rgba(190, 24, 93, 0.3);
+  }
+</style>
