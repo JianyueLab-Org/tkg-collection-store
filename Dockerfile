@@ -14,5 +14,5 @@ COPY --from=builder /app/build ./build
 COPY --from=builder /app/package.json ./package.json
 RUN npm install --production
 
-EX poses 3000
+EXPOSE poses 3000
 CMD ["node", "build"]
