@@ -7,7 +7,7 @@
   let widgetOpen = false;
   let widgetMessage = '';
   let widgetMessages: { from: 'user' | 'bot'; text: string }[] = [
-    { from: 'bot', text: '你好！欢迎来到高木桑收藏品店 ✨ 想了解明信片代寄，还是收藏品选购？' }
+    { from: 'bot', text: '你好！欢迎来到高木桑收藏品店 ✨ 想了解明信片代寄或邮路测试，还是收藏品选购？' }
   ];
   function sendMessage() {
     if (!widgetMessage.trim()) return;
@@ -157,15 +157,15 @@
   const stats = [
     { value: '3+', label: '代寄城市' },
     { value: '8,00+', label: '明信片在库' },
-    { value: '10+', label: '成功代寄' },
+    { value: '10+', label: '经测试有效邮路' },
     { value: '99%', label: '好评率' },
   ];
 
   const mailSteps = [
-    { step: '01', icon: '🗺️', title: '选择目的地', desc: '从我们覆盖的30+城市中选出您想邮寄的目的地' },
+    { step: '01', icon: '🗺️', title: '选择目的地', desc: '可以选择全球目的地（只要目的地地区可达）' },
     { step: '02', icon: '🎴', title: '挑选明信片', desc: '浏览精选库存，选一张最能代表心意的明信片' },
     { step: '03', icon: '✍️', title: '撰写寄语', desc: '留下您想说的话，我们为您手写或打印在卡片背面' },
-    { step: '04', icon: '📬', title: '追踪邮路', desc: '实时查看您的明信片正在哪段旅程中' },
+    { step: '04', icon: '📬', title: '追踪邮路', desc: '若选择挂号追踪，实时查看您的明信片正在哪段旅程中' },
   ];
 </script>
 
@@ -193,7 +193,7 @@
     <div class="space-y-8">
       <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-rose-50 border border-rose-200 text-rose-600 text-sm font-medium">
         <span class="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
-        全球代寄服务现测试中，即将上线 ✉️
+        全球代寄/邮路测试服务现测试中，即将上线 ✉️
       </div>
       <h1 class="text-5xl lg:text-7xl font-black leading-tight tracking-tight text-slate-900">
         一张明信片，<br/>
@@ -202,7 +202,7 @@
         </span>
       </h1>
       <p class="text-lg text-slate-500 leading-relaxed max-w-lg">
-        高木桑收藏品店 —— 专注于明信片、信件与邮票的收藏与代寄。每一张卡片都是有温度的旅行，让您的心意从世界任何角落出发。
+        高木桑收藏品店 —— 专注于明信片、信件与邮票的收藏与代寄，以及创新型的邮路测试功能。每一张卡片都是有温度的旅行，让您的心意从世界任何角落出发。
       </p>
       <div class="flex flex-wrap gap-4">
         <a href="#shop"
@@ -347,7 +347,7 @@
     <div class="text-center max-w-2xl mx-auto mb-16 space-y-4">
       <span class="inline-block px-4 py-1.5 rounded-full bg-purple-50 text-purple-600 text-sm font-semibold border border-purple-200">关于我们</span>
       <h2 class="text-4xl lg:text-5xl font-black text-slate-900 leading-tight">
-        探索<span class="bg-gradient-to-r from-rose-500 to-purple-600 bg-clip-text text-transparent">高木桑的世界</span>
+        探索<span class="bg-gradient-to-r from-rose-500 to-purple-600 bg-clip-text text-transparent">邮路的世界</span>
       </h2>
       <p class="text-slate-500 text-lg">明信片是旅行记忆的凝固，是人与人之间最温柔的连接。</p>
     </div>
@@ -366,17 +366,17 @@
             <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-rose-500 to-purple-600 flex items-center justify-center shadow-lg text-xl">📬</div>
             <div>
               <h3 class="text-xl font-black text-slate-900">高木桑收藏品店的故事</h3>
-              <p class="text-sm text-slate-400">始于一张来自京都的明信片</p>
+              <p class="text-sm text-slate-400">始于一张来自杭州的明信片</p>
             </div>
           </div>
           <p class="text-slate-600 leading-relaxed mb-6">
-            2023年，Jack在一次旅途中，给自己寄出了一张印有西塘风光的明信片。从那以后，收集来自世界各地的明信片与邮票，成为了他最执着的爱好。如今，这家小店承载着来自30余个国家的明信片收藏，也为每一位想传递心意的人提供专业代寄服务。
+            2023年，Jack在一次旅途中，给自己寄出了一张印有西塘风光的明信片。从那以后，收集来自世界各地的明信片与邮票，成为了他最执着的爱好。如今，这家小店承载着来自10余个国家的明信片收藏，也为每一位想传递心意的人提供专业代寄和新手邮路测试服务。
           </p>
           <div class="flex flex-wrap gap-3">
             <span class="px-4 py-2 rounded-full bg-rose-50 text-rose-600 text-sm font-medium border border-rose-100">🇨🇳 中国系列</span>
             <span class="px-4 py-2 rounded-full bg-blue-50 text-blue-600 text-sm font-medium border border-blue-100">🌍 欧洲系列</span>
             <span class="px-4 py-2 rounded-full bg-purple-50 text-purple-600 text-sm font-medium border border-purple-100">🏷️ 集邮专区</span>
-            <span class="px-4 py-2 rounded-full bg-slate-50 text-slate-600 text-sm font-medium border border-slate-100">✉️ 代寄服务</span>
+            <span class="px-4 py-2 rounded-full bg-slate-50 text-slate-600 text-sm font-medium border border-slate-100">✉️ 代寄/邮路测试服务</span>
           </div>
         </div>
         <div class="absolute bottom-4 right-6 opacity-10 pointer-events-none">
@@ -399,7 +399,7 @@
           </svg>
         </div>
         <div class="relative">
-          <h3 class="text-xl font-black text-white mb-2">如何代寄明信片</h3>
+          <h3 class="text-xl font-black text-white mb-2">如何代寄明信片或进行邮路测试</h3>
           <p class="text-slate-400 text-sm mb-8">四步完成，让心意飞翔</p>
           <div class="space-y-6">
             {#each mailSteps as step, i}
@@ -464,7 +464,7 @@
         shadow-[8px_8px_24px_rgba(0,0,0,0.18)] hover:shadow-[14px_14px_36px_rgba(0,0,0,0.22)] transition-shadow duration-300">
         <div class="flex items-center gap-2 mb-4">
           <div class="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
-          <h3 class="text-base font-black text-white">实时全球邮路</h3>
+          <h3 class="text-base font-black text-white">实时全球邮路(开发中)</h3>
           <span class="ml-auto text-[10px] text-slate-500 bg-slate-800 px-2 py-0.5 rounded-full font-mono">LIVE</span>
         </div>
         <div class="relative rounded-xl overflow-hidden bg-slate-950/50 border border-purple-900/50">
@@ -520,7 +520,7 @@
       <h2 class="text-4xl lg:text-5xl font-black text-slate-900 leading-tight">
         明信片 · 信件 · <span class="bg-gradient-to-r from-blue-500 to-purple-600 bg-clip-text text-transparent">邮票零售</span>
       </h2>
-      <p class="text-slate-500 text-lg">精选来自全球的收藏品，每一件都经过高木桑亲自挑选。</p>
+      <p class="text-slate-500 text-lg">商店功能即将上线。</p>
     </div>
 
     <!-- Filter tabs -->

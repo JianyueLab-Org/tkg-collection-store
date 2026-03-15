@@ -1,0 +1,143 @@
+这份文档为你整理了基于 **GitHub Actions + Docker + GHCR** 的通用 CI/CD 配置流程。你可以将其保存到你的笔记应用或作为新项目的 `README_CI.md`。
+
+---
+
+# 🚀 项目自动化部署手册 (GitHub Actions + Docker)
+
+本手册适用于将项目（如 Svelte, Go, Python 等）打包为 Docker 镜像，并自动部署到个人服务器（Home Lab）。
+
+## 1. 环境准备清单
+
+在正式配置前，确保以下条件已满足：
+
+* **服务器：** 已安装 Docker。
+* **网络：** 服务器 SSH 端口（默认 22）及应用端口（如 8080）对公网或 GitHub IP 开放。
+* **权限：** 拥有 GitHub 组织/仓库的管理员权限。
+
+## 2. GitHub 密钥配置 (Secrets)
+
+前往仓库 **Settings > Secrets and variables > Actions**，添加以下 `Repository secrets`:
+
+| 变量名 | 内容描述 |
+| --- | --- |
+| `SSH_HOST` | 服务器的公网 IP 或域名 |
+| `SSH_USER` | 登录用户名（如 `root`） |
+| `SSH_KEY` | 服务器生成的 **SSH 私钥** (`~/.ssh/id_ed25519`) |
+| `PAT_TOKEN` | (可选) 具有 `read:packages` 权限的个人访问令牌 |
+
+## 3. 基础设施配置文件
+
+### 📂 文件一：`Dockerfile` (项目根目录)
+
+用于定义如何打包你的应用。
+
+```dockerfile
+# 以 Node.js 为例
+FROM node:20-slim AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm install
+COPY . .
+RUN npm run build
+
+FROM node:20-slim
+WORKDIR /app
+COPY --from=builder /app/build ./build
+COPY --from=builder /app/package.json ./package.json
+RUN npm install --production
+EXPOSE 3000
+CMD ["node", "build"]
+
+```
+
+### 📂 文件二：`.github/workflows/deploy.yml`
+
+这是 CI/CD 的核心大脑。
+
+```yaml
+name: Docker Build and Deploy
+
+on:
+  push:
+    branches: [ "main" ] # 触发分支
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and Push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Remote SSH Deploy
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            docker stop my-app || true
+            docker rm my-app || true
+            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            docker run -d --name my-app -p 8080:3000 ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            docker image prune -f
+
+```
+
+---
+
+## 4. 关键操作步骤
+
+### 第一步：服务器 SSH 授权
+
+1. 在服务器生成密钥：`ssh-keygen -t ed25519`。
+2. 将公钥加入信任列表：`cat ~/.ssh/id_ed25519.pub >> ~/.ssh/authorized_keys`。
+3. 确保目录权限：`chmod 700 ~/.ssh && chmod 600 ~/.ssh/authorized_keys`。
+
+### 第二步：GHCR 权限设置 (组织项目必做)
+
+1. 第一次推送镜像后，进入 **Organization > Packages**。
+2. 找到对应镜像，进入 **Package Settings**。
+3. 在 **Manage Actions access** 中，确保当前仓库被添加并标记为 **Role: Write**。
+
+### 第三步：手动登录验证 (首次部署)
+
+在服务器上手动执行一次，确保拉取权限正常：
+
+```bash
+docker login ghcr.io -u <Your_GitHub_Username>
+# 输入之前准备好的 PAT_TOKEN
+
+```
+
+## 5. 日常维护建议
+
+* **查看进度：** 代码推送后，在 GitHub 仓库的 **Actions** 栏目查看实时日志。
+* **清理空间：** 在部署脚本中包含 `docker image prune -f` 以防止旧镜像堆积耗尽服务器硬盘。
+* **反向代理：** 配合 Nginx 使用，将域名流量转发至 Docker 容器映射的端口（如 8080）。
+
+---
+
+**💡 小贴士：** 对于新项目，只需修改 `deploy.yml` 中的容器名称（`my-app`）和端口号（`8080:3000`），即可快速复用此流程。
