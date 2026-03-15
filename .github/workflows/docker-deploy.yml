@@ -18,11 +18,23 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # 1. 转换名称并存入环境变量
+      # 1. 转换名称并存入环境变量（为了后续部署使用）
       - name: lowercase repo name
         run: |
           echo "IMAGE_NAME_LOWER=${GITHUB_REPOSITORY@L}" >> "${GITHUB_ENV}"
 
+      # 2. 提取 Docker 标签元数据（非常重要，否则 build-push 没标签可用）
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWER }}
+
+      # 3. 设置 Buildx（支持缓存导出的关键）
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # 4. 登录 GHCR
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
@@ -30,32 +42,21 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      # --- 关键步骤开始 ---
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      # --- 关键步骤结束 ---
-
-      - name: Login to GHCR
-        uses: docker/login-action@v3
-        # ... 你的登录配置
-
+      # 5. 构建并推送（带 GHA 缓存）
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
           tags: ${{ steps.meta.outputs.tags }}
-          # 现在这行能跑通了，因为它有了支持 gha 的 Builder
+          labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
   deploy:
     needs: build-and-push
     runs-on: ubuntu-latest
     steps:
-      # 部署阶段也需要重新转换一次名称，或者在任务间传递，最简单的方法是再跑一次转换
       - name: lowercase repo name
         run: |
           echo "IMAGE_NAME_LOWER=${GITHUB_REPOSITORY@L}" >> "${GITHUB_ENV}"
@@ -66,9 +67,13 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
+          # 建议增加超时，防止腾讯云拉取过慢导致中断
+          command_timeout: 20m
           script: |
-            # 3. 这里同样必须使用全小写的镜像名
+            # 使用环境变量中的全小写名称
             docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWER }}:latest
             docker stop svelte-app || true
             docker rm svelte-app || true
             docker run -d --name svelte-app -p 8080:3000 ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWER }}:latest
+            # 清理虚悬镜像，节省腾讯云空间
+            docker image prune -f
