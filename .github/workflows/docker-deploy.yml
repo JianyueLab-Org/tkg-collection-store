@@ -6,7 +6,6 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
   build-and-push:
@@ -19,6 +18,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # 1. 转换名称并存入环境变量
       - name: lowercase repo name
         run: |
           echo "IMAGE_NAME_LOWER=${GITHUB_REPOSITORY@L}" >> "${GITHUB_ENV}"
@@ -30,17 +30,23 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # 2. 这里必须使用 env.IMAGE_NAME_LOWER
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWER }}:latest
 
   deploy:
     needs: build-and-push
     runs-on: ubuntu-latest
     steps:
+      # 部署阶段也需要重新转换一次名称，或者在任务间传递，最简单的方法是再跑一次转换
+      - name: lowercase repo name
+        run: |
+          echo "IMAGE_NAME_LOWER=${GITHUB_REPOSITORY@L}" >> "${GITHUB_ENV}"
+
       - name: Deploy via SSH
         uses: appleboy/ssh-action@master
         with:
@@ -48,8 +54,8 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           script: |
-            # 既然服务器已经手动登录过了，这里直接 pull 即可
-            docker pull ghcr.io/${{ github.repository }}:latest
+            # 3. 这里同样必须使用全小写的镜像名
+            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWER }}:latest
             docker stop svelte-app || true
             docker rm svelte-app || true
-            docker run -d --name svelte-app -p 8080:3000 ghcr.io/${{ github.repository }}:latest
+            docker run -d --name svelte-app -p 8080:3000 ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWER }}:latest
