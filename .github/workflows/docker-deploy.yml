@@ -31,13 +31,15 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       # 2. 这里必须使用 env.IMAGE_NAME_LOWER
-      - name: Build and push Docker image
+      - name: Build and push
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWER }}:latest
-
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
   deploy:
     needs: build-and-push
     runs-on: ubuntu-latest
