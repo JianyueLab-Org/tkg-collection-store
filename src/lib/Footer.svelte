@@ -22,17 +22,7 @@
       <!-- Brand col -->
       <div class="lg:col-span-2 space-y-4">
         <div class="flex items-center gap-2">
-          <span class="w-9 h-9 rounded-xl bg-gradient-to-br from-rose-500 to-purple-600 flex items-center justify-center">
-            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round"
-                d="M21.75 9v.906a2.25 2.25 0 01-1.183 1.981l-6.478 3.488
-                   M2.25 9v.906a2.25 2.25 0 001.183 1.981l6.478 3.488
-                   m8.839 2.51l-4.66-2.51m0 0l-1.023-.55a2.25 2.25 0 00-2.134 0l-1.022.55
-                   m0 0l-4.661 2.51m16.5 1.615a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0
-                   01-2.25-2.25V8.844a2.25 2.25 0 011.183-1.98l7.5-4.04a2.25 2.25 0 012.134
-                   0l7.5 4.04a2.25 2.25 0 011.183 1.98V19.5z"/>
-            </svg>
-          </span>
+            <img src="favicon.svg" class="w-10 h-10 text-white" alt="logo" />
           <span class="font-extrabold text-xl text-white">
             <span class="text-rose-400">TKG·</span><span class="text-purple-400">Collection Store</span>
           </span>
