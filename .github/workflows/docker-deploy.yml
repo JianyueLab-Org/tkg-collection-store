@@ -47,61 +47,50 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # 4.1 登录 Tencent TCR
-      - name: Log in to Tencent TCR
-        uses: docker/login-action@v3
-        with:
-          registry: ccr.ccs.tencentyun.com
-          username: "100009969395"
-          password: Misspan250  # TODO注意：这里的密码是临时的，建议使用更安全的方式管理（如 GitHub Secrets）
-
-      # 5. 构建并推送（双注册表）
-      - name: Build and push
+      # 5. 构建并推送（仅推送到 GHCR）
+      - name: Build and push to GHCR
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
-          tags: |
-            ghcr.io/${{ env.IMAGE_NAME_LOWER }}:latest
-            ccr.ccs.tencentyun.com/tkg-collection-store/tkg-collection-store:latest
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: ghcr.io/${{ env.IMAGE_NAME_LOWER }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  deploy:
-    needs: build-and-push
-    runs-on: ubuntu-latest
-    steps:
-      - name: lowercase repo name
-        run: |
-          echo "IMAGE_NAME_LOWER=${GITHUB_REPOSITORY@L}" >> "${GITHUB_ENV}"
-
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          # 建议增加超时，防止腾讯云拉取过慢导致中断
-          command_timeout: 20m
-          script: |
-            # 使用腾讯云镜像源部署
-            TCR_IMAGE="ccr.ccs.tencentyun.com/tkg-collection-store/tkg-collection-store:latest"
-            
-            docker pull $TCR_IMAGE
-            docker stop svelte-app || true
-            docker rm svelte-app || true
-
-            # 在宿主机（腾讯云）创建一个目录用来放数据库，防止权限问题
-            mkdir -p /home/ubuntu/app_data && chmod 777 /home/ubuntu/app_data
-
-            # 启动容器时进行挂载
-            docker run -d \
-              --name svelte-app \
-              -p 8080:3000 \
-              -v /home/ubuntu/app_data:/app/data \
-              -e DATABASE_PATH=/app/data/production.sqlite \
-              $TCR_IMAGE
-
-            # 清理虚悬镜像，节省腾讯云空间
-            docker image prune -f
+# 因为GHCR访问太慢，我决定自行实现部署，这里先注释掉，后续如果需要可以再启用
+#  deploy:
+#    needs: build-and-push
+#    runs-on: ubuntu-latest
+#    steps:
+#      - name: lowercase repo name
+#        run: |
+#          echo "IMAGE_NAME_LOWER=${GITHUB_REPOSITORY@L}" >> "${GITHUB_ENV}"
+#      - name: Deploy via SSH
+#        uses: appleboy/ssh-action@master
+#        with:
+#          host: ${{ secrets.SSH_HOST }}
+#          username: ${{ secrets.SSH_USER }}
+#          key: ${{ secrets.SSH_KEY }}
+#          # 建议增加超时，防止拉取镜像过慢导致中断
+#          command_timeout: 20m
+#          script: |
+#            # 使用 GHCR 镜像进行部署
+#            GHCR_IMAGE="ghcr.io/${{ env.IMAGE_NAME_LOWER }}:latest"
+#
+#            docker pull $GHCR_IMAGE
+#            docker stop svelte-app || true
+#            docker rm svelte-app || true
+#
+#            # 在宿主机创建一个目录用来放数据库，防止权限问题
+#            mkdir -p /home/ubuntu/app_data && chmod 777 /home/ubuntu/app_data
+#
+#            # 启动容器时进行挂载
+#            docker run -d \
+#              --name svelte-app \
+#              -p 8080:3000 \
+#              -v /home/ubuntu/app_data:/app/data \
+#              -e DATABASE_PATH=/app/data/production.sqlite \
+#              $GHCR_IMAGE
+#
+#            # 清理虚悬镜像，节省宿主机空间
+#            docker image prune -f
