@@ -101,7 +101,7 @@
 
         <!-- Airmail label badge -->
         <div class="airmail-badge px-3 py-1 rounded text-[10px] font-mono font-bold tracking-widest" style="color:#0b1829;">
-          第一次修改
+          v3161528
         </div>
       </div>
     </div>
