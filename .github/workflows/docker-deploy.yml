@@ -29,6 +29,11 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWER }}
+          # --- 核心修改：明确定义标签策略 ---
+          tags: |
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            type=ref,event=branch
+          # --------------------------------
 
       # 3. 设置 Buildx（支持缓存导出的关键）
       - name: Set up Docker Buildx

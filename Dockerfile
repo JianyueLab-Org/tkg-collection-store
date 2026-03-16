@@ -11,6 +11,14 @@ RUN npm run build
 FROM node:20-slim
 WORKDIR /app
 
+# 安装 SQLite 运行时必要的库（slim 版本默认可能没有）
+RUN apt-get update && apt-get install -y \
+    python3 \
+    make \
+    g++ \
+    sqlite3 \
+    && rm -rf /var/lib/apt/lists/*
+
 # 核心：必须设置环境变量，否则外部无法访问
 ENV HOST=0.0.0.0
 ENV PORT=3000
