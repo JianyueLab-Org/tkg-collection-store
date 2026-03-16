@@ -17,5 +17,6 @@ jobs:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     uses: JianyueLab-Org/actions/.github/workflows/deploy-dokploy.yml@main
     with:
+      environment_url: "https://tkgsan.cn/"
       sha: ${{ github.event.workflow_run.head_sha }}
     secrets: inherit
