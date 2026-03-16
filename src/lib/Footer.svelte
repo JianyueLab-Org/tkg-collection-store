@@ -99,9 +99,9 @@
           </div>
         </slot>
 
-        <!-- Airmail label badge -->
+        <!-- 网站更新暗号 -->
         <div class="airmail-badge px-3 py-1 rounded text-[10px] font-mono font-bold tracking-widest" style="color:#0b1829;">
-          v3161528
+          0316 1725
         </div>
       </div>
     </div>
