@@ -1,124 +1,230 @@
 <script lang="ts">
-  // ── mode & flip animation ──────────────────────────────────────────────────
-  // mode: 'login' | 'register'
-  // flip phases:
-  //   'idle' → card at rotateY(0), showing current mode
-  //   'out'  → animating rotateY(0→90deg), card "folding away"
-  //   'in'   → animating rotateY(90→0deg), card "unfolding" with new content
   import Footer from "$lib/Footer.svelte";
   import Navbar from "$lib/Navbar.svelte";
+  import { goto } from '$app/navigation';
+  import { onMount } from 'svelte';
 
+  import { auth } from '$lib/stores/auth.js';
+  import { page } from '$app/stores';
+
+  // ── state: mode switch ──────────────────────────────────────────────────
   let mode: 'login' | 'register' = 'login';
   let flipPhase: 'idle' | 'out' | 'in' = 'idle';
 
-  function switchMode() {
-    if (flipPhase !== 'idle') return;
-    flipPhase = 'out';
-    // After 'out' transition ends (280ms), swap content and start 'in'
-    setTimeout(() => {
-      mode = mode === 'login' ? 'register' : 'login';
-      flipPhase = 'in';
-      // After 'in' transition ends (280ms), return to idle
-      setTimeout(() => { flipPhase = 'idle'; }, 300);
-    }, 300);
-  }
-
-  // ── login form ─────────────────────────────────────────────────────────────
-  let loginEmail    = '';
+  // ── state: login form ───────────────────────────────────────────────────
+  let loginEmail = '';
   let loginPassword = '';
-  let loginLoading  = false;
-  let loginError    = '';
-  let loginSuccess  = '';
-  let showLoginPwd  = false;
+  let showLoginPwd = false;
+  let loginLoading = false;
+  let loginError = '';
+  let loginSuccess = '';
 
-  // ── register form ──────────────────────────────────────────────────────────
-  let regUsername  = '';
-  let regEmail     = '';
-  let regPassword  = '';
-  let regConfirm   = '';
-  let regNickname  = '';
-  let regLoading   = false;
-  let regError     = '';
-  let regSuccess   = '';
-  let showRegPwd   = false;
-  let showRegConf  = false;
-  let agreeTerms   = false;
+  // ── state: register form ────────────────────────────────────────────────
+  let regUsername = '';
+  let regEmail = '';
+  let regNickname = '';
+  let regPassword = '';
+  let regConfirm = '';
+  let showRegPwd = false;
+  let showRegConf = false;
+  let regLoading = false;
+  let regError = '';
+  let regSuccess = '';
+  let agreeTerms = false;
+  let pwdStrength = 0;
 
-  function validateEmail(v: string) {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+  // ── methods ─────────────────────────────────────────────────────────────
+
+  // Toggle between Login / Register with 3D flip animation
+  async function switchMode() {
+    if (flipPhase !== 'idle') return;
+
+    // 1. Flip OUT
+    flipPhase = 'out';
+    await new Promise(r => setTimeout(r, 280));
+
+    // 2. Change content
+    mode = mode === 'login' ? 'register' : 'login';
+    // reset form states
+    loginError = ''; loginSuccess = '';
+    regError = ''; regSuccess = '';
+
+    // 3. Flip IN
+    flipPhase = 'in';
+    await new Promise(r => setTimeout(r, 50)); // tiny delay to let DOM update
+    flipPhase = 'idle';
   }
 
-  // ── API: LOGIN ─────────────────────────────────────────────────────────────
-  async function handleLogin(e: SubmitEvent) {
+  // Password Strength Logic (simple heuristic)
+  $: {
+    if (!regPassword) pwdStrength = 0;
+    else {
+      let score = 0;
+      if (regPassword.length > 5) score++;
+      if (regPassword.length > 8) score++;
+      if (/[A-Z]/.test(regPassword)) score++;
+      if (/[0-9]/.test(regPassword)) score++;
+      if (/[^a-zA-Z0-9]/.test(regPassword)) score++;
+      pwdStrength = Math.min(score, 4);
+    }
+  }
+
+  const strengthLabel = ["", "太弱", "一般", "不错", "极其强悍"];
+  const strengthColor = ["", "text-red-500", "text-orange-500", "text-blue-500", "text-green-600"];
+  const strengthBarColor = ["", "bg-red-400", "bg-orange-400", "bg-blue-400", "bg-green-500"];
+
+  // LOGIN Handler
+  async function handleLogin(e: Event) {
     e.preventDefault();
-    loginError = ''; loginSuccess = '';
-    if (!validateEmail(loginEmail))  { loginError = '请输入有效的邮箱地址'; return; }
-    if (loginPassword.length < 6)   { loginError = '密码至少 6 位'; return; }
+    if (loginLoading) return;
+
+    // basic validation
+    if (!loginEmail || !loginPassword) {
+      loginError = "请输入邮箱和密码";
+      return;
+    }
+
     loginLoading = true;
+    loginError = '';
+    loginSuccess = '';
+
     try {
-      // ↓↓↓ TODO: 替换为真实后端端点
-      const res  = await fetch('/api/auth/login', {
+      const payload = { username: loginEmail, password: loginPassword };
+
+      const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: loginEmail, password: loginPassword }),
+        body: JSON.stringify(payload)
       });
+
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message ?? '登录失败');
-      loginSuccess = '登录成功！正在跳转 ✉️';
-      // TODO: localStorage.setItem('token', data.token);
-      // TODO: goto('/');
-    } catch (err: any) {
-      loginError = err.message ?? '网络错误，请稍后重试';
+
+      if (res.ok) {
+        loginSuccess = "登录成功！正在跳转...";
+
+        // Use auth store
+        auth.login(data.user, data.token);
+
+        // Get redirect loop
+        const from = $page.url.searchParams.get('from') || '/';
+
+        setTimeout(() => {
+          goto(from);
+        }, 800);
+      } else {
+        loginError = data.error || "登录失败，请检查凭证";
+      }
+
+    } catch (err) {
+      console.error(err);
+      loginError = "网络连接错误，请稍后重试";
     } finally {
       loginLoading = false;
     }
   }
 
-  // ── API: REGISTER ──────────────────────────────────────────────────────────
-  async function handleRegister(e: SubmitEvent) {
+  // REGISTER Handler
+  async function handleRegister(e: Event) {
     e.preventDefault();
-    regError = ''; regSuccess = '';
-    if (!regUsername.trim())        { regError = '请填写用户名'; return; }
-    if (!validateEmail(regEmail))   { regError = '请输入有效的邮箱地址'; return; }
-    if (regPassword.length < 8)     { regError = '密码至少 8 位'; return; }
-    if (regPassword !== regConfirm) { regError = '两次密码不一致'; return; }
-    if (!agreeTerms)                { regError = '请阅读并同意服务条款'; return; }
+    if (regLoading) return;
+
+    // validation
+    if (!regUsername || !regEmail || !regPassword) {
+      regError = "请填写所有必填项";
+      return;
+    }
+    if (regPassword !== regConfirm) {
+      regError = "两次输入的密码不一致";
+      return;
+    }
+    if (!agreeTerms) {
+      regError = "请阅读并同意服务条款";
+      return;
+    }
+    if (regPassword.length < 8) {
+        regError = "密码长度至少需要8位";
+        return;
+    }
+
     regLoading = true;
+    regError = '';
+    regSuccess = '';
+
     try {
-      // ↓↓↓ TODO: 替换为真实后端端点
-      const res  = await fetch('/api/auth/register', {
+      const payload = {
+          username: regUsername,
+          password: regPassword,
+          email: regEmail
+      };
+
+      const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          username: regUsername,
-          nickname: regNickname || regUsername,
-          email: regEmail,
-          password: regPassword,
-        }),
+        body: JSON.stringify(payload)
       });
+
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message ?? '注册失败');
-      regSuccess = '注册成功！即将跳转登录 🎉';
-      setTimeout(() => switchMode(), 1800);
-    } catch (err: any) {
-      regError = err.message ?? '网络错误，请稍后重试';
+
+      if (res.ok) {
+        regSuccess = "注册成功！即将为您切换到登录...";
+        setTimeout(async () => {
+           // Auto fill login
+           loginEmail = regUsername;
+           loginPassword = '';
+           // Switch to login view
+           await switchMode();
+        }, 1200);
+      } else {
+        regError = data.error || "注册失败，请换个用户名试试";
+      }
+
+    } catch (err) {
+      console.error(err);
+      regError = "网络连接错误，请稍后重试";
     } finally {
       regLoading = false;
     }
   }
 
-  // ── password strength ──────────────────────────────────────────────────────
-  $: pwdStrength = (() => {
-    if (!regPassword) return 0;
-    if (regPassword.length < 8) return 1;
-    if (regPassword.length < 12) return 2;
-    if (/[A-Z]/.test(regPassword) && /\d/.test(regPassword) && /[^A-Za-z0-9]/.test(regPassword)) return 4;
-    return 3;
-  })();
+  let isFlipping = false;
+  // let username = ''; // Removed unused
+  // let password = ''; // Removed unused
 
-  const strengthLabel = ['', '弱 — 太短了', '一般 — 建议更长', '良好 — 可以更强', '强 💪'];
-  const strengthColor = ['', 'text-red-400', 'text-amber-500', 'text-blue-500', 'text-green-500'];
-  const strengthBarColor = ['', 'bg-red-400', 'bg-amber-400', 'bg-blue-400', 'bg-green-400'];
+  // 3D 旋转相关的状态
+  let rotateY = 0;
+  let mouseX = 0;
+  let mouseY = 0;
+  let cardElement: HTMLElement; // Added type annotation
+
+  function handleMouseMove(e: MouseEvent) { // Added type annotation
+    if (!cardElement) return; // Guard clause
+    const { clientX, clientY } = e;
+    const { left, top, width, height } = cardElement.getBoundingClientRect();
+    const x = ((clientX - left) / width - 0.5) * 2;
+    const y = ((clientY - top) / height - 0.5) * 2;
+    mouseX = x;
+    mouseY = y;
+    rotateY = x * 15; // 控制旋转角度
+  }
+
+  // const cardStyle = { // Removed unused
+  //   transform: `rotateY(${rotateY}deg)`,
+  // };
+
+  onMount(() => {
+    const handle = (e: MouseEvent) => { // Added type annotation
+      if (isFlipping) return;
+      // We need to check if mouse is over cardElement to mimic previous logic roughly or just attach to window?
+      // Actually previous logic attached to window but used cardElement.
+      // If cardElement is null onMount (which shouldn't happen if bound correctly), we should check.
+      if(cardElement) {
+          // Check if mouse is within card bounds if needed, or just calculate parallax
+           handleMouseMove(e);
+      }
+    };
+    window.addEventListener('mousemove', handle as any); // Cast to any to satisfy TS listener requirement if strict
+    return () => window.removeEventListener('mousemove', handle as any);
+  });
 </script>
 
 <!-- ═══════════════════════════════════════════════════ PAGE ═══════════════ -->
@@ -196,7 +302,11 @@
     </div>
 
     <!-- THE CARD -->
-    <div class="postcard" class:flip-out={flipPhase === 'out'} class:flip-in={flipPhase === 'in'}>
+    <div class="postcard"
+      bind:this={cardElement}
+      class:flip-out={flipPhase === 'out'}
+      class:flip-in={flipPhase === 'in'}
+    >
 
       <!-- paper grain on card -->
       <svg class="abs-grain card-grain" xmlns="http://www.w3.org/2000/svg">
@@ -766,11 +876,5 @@
   .switch-action-purple { color: #7c3aed; }
   .switch-action-rose   { color: #e11d48; }
 
-  /* ── tagline ─────────────────────────────────────────────── */
-  .tagline {
-    position: relative; z-index: 10;
-    margin-top: 2.5rem; font-size: 0.65rem; color: #94a3b8;
-    font-family: monospace; letter-spacing: 0.18em; text-align: center;
-  }
-</style>
 
+</style>
