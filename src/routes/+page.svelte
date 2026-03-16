@@ -180,8 +180,8 @@
 <!-- ===== CONSTRUCTION MODAL ===== -->
 <!--TODO 设计完毕要更改showConstructionModal取消展示-->
 {#if showConstructionModal}
-  <div class="modal-backdrop" on:click={() => showConstructionModal = false}>
-    <div class="modal-content" on:click|stopPropagation>
+  <div class="modal-backdrop" role="button" tabindex="0" on:click={() => showConstructionModal = false} on:keydown={(e) => e.key === 'Escape' && (showConstructionModal = false)}>
+    <div class="modal-content" role="dialog" tabindex="-1" on:click|stopPropagation on:keydown|stopPropagation>
       <button class="modal-close-btn" on:click={() => showConstructionModal = false}>&times;</button>
       <h2 class="modal-title">🚧 施工中：高木桑的小店正在努力装修...</h2>
       <div class="modal-body">
