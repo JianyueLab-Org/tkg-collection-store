@@ -1,0 +1,11 @@
+name: Core Check
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  checks:
+    uses: JianyueLab-Org/actions/.github/workflows/web-check.yml@main
