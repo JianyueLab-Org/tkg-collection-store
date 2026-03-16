@@ -79,6 +79,17 @@ jobs:
             docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWER }}:latest
             docker stop svelte-app || true
             docker rm svelte-app || true
-            docker run -d --name svelte-app -p 8080:3000 ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWER }}:latest
+
+            # 在宿主机（腾讯云）创建一个目录用来放数据库，防止权限问题
+            mkdir -p /home/ubuntu/app_data && chmod 777 /home/ubuntu/app_data
+
+            # 启动容器时进行挂载
+            docker run -d \
+              --name svelte-app \
+              -p 8080:3000 \
+              -v /home/ubuntu/app_data:/app/data \
+              -e DATABASE_PATH=/app/data/production.sqlite \
+              ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWER }}:latest
+
             # 清理虚悬镜像，节省腾讯云空间
             docker image prune -f
