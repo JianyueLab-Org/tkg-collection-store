@@ -1,5 +1,6 @@
 <script>
-    import {Footer, Navbar} from "$lib";
+    import Navbar from '../../lib/Navbar.svelte';
+    import Footer from '../../lib/Footer.svelte';
 </script>
 
 <svelte:head>
