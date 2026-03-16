@@ -53,7 +53,7 @@ jobs:
         with:
           registry: ccr.ccs.tencentyun.com
           username: "100009969395"
-          password: ${{ secrets.TCR_PASSWORD }}
+          password: Misspan250  # TODO注意：这里的密码是临时的，建议使用更安全的方式管理（如 GitHub Secrets）
 
       # 5. 构建并推送（双注册表）
       - name: Build and push
