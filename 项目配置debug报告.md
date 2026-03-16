@@ -1,11 +1,11 @@
 下面是一份**整合现有材料 + 最新社区讨论**的 **最终版 Debug 报告（Markdown 格式）**。
 内容包括：
 
-* 故障复盘
-* 技术根因
-* AI Agent 失败原因
-* 改进策略
-* Agent 编程规范
+- 故障复盘
+- 技术根因
+- AI Agent 失败原因
+- 改进策略
+- Agent 编程规范
 
 报告可直接保存为 `.md` 使用。
 
@@ -25,16 +25,16 @@
 
 问题表现为：
 
-* Tailwind 样式未生效
-* Vite dev server 报错
-* `Cannot find module '@tailwindcss/postcss'`
-* 反复修改配置仍无法解决
+- Tailwind 样式未生效
+- Vite dev server 报错
+- `Cannot find module '@tailwindcss/postcss'`
+- 反复修改配置仍无法解决
 
 经过多轮调试，最终通过：
 
-* 删除旧配置
-* 切换 Vite plugin
-* 清理缓存
+- 删除旧配置
+- 切换 Vite plugin
+- 清理缓存
 
 成功解决问题。
 
@@ -101,7 +101,7 @@ postcss.config.cjs
 
 问题：
 
-* 与 Tailwind v4 架构不兼容
+- 与 Tailwind v4 架构不兼容
 
 ---
 

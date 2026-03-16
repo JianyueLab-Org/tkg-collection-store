@@ -1,9 +1,8 @@
-import Database from 'better-sqlite3';
-import { env } from '$env/dynamic/private';
+import Database from "better-sqlite3";
+import { env } from "$env/dynamic/private";
 
-const dbPath = env.DATABASE_PATH || 'local.db';
+const dbPath = env.DATABASE_PATH || "local.db";
 const db = new Database(dbPath, { verbose: console.log });
-
 
 // 初始化用户表
 db.exec(`
